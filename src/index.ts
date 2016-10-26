@@ -1,6 +1,6 @@
 import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
-import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye} from 'd3-shape';
+import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye, line as d3line} from 'd3-shape';
 import {select} from 'd3-selection';
 import {zoom, zoomTransform, ZoomScale} from 'd3-zoom';
 import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
@@ -24,8 +24,14 @@ export interface ISymbolRenderer<T> {
   done();
 }
 
+export enum ERenderMode {
+  NORMAL,
+  SELECTED,
+  HOVER
+}
+
 export interface ISymbol<T> {
-  (ctx:CanvasRenderingContext2D): ISymbolRenderer<T>;
+  (ctx:CanvasRenderingContext2D, mode: ERenderMode): ISymbolRenderer<T>;
 }
 
 /**
@@ -66,9 +72,14 @@ export function circleSymbol(fillStyle:string = 'steelblue', size = 20):ISymbol<
   const r = Math.sqrt(size / Math.PI);
   const tau = 2 * Math.PI;
 
-  return (ctx:CanvasRenderingContext2D) => {
+  const styles = {
+    [ERenderMode.NORMAL]: fillStyle,
+    [ERenderMode.HOVER]: 'orange',
+    [ERenderMode.SELECTED]: 'red'
+  };
+
+  return (ctx:CanvasRenderingContext2D, mode : ERenderMode) => {
     //before
-    ctx.fillStyle = fillStyle;
     ctx.beginPath();
     return {
       //during
@@ -79,6 +90,7 @@ export function circleSymbol(fillStyle:string = 'steelblue', size = 20):ISymbol<
       //after
       done: () => {
         ctx.closePath();
+        ctx.fillStyle = styles[mode];
         ctx.fill();
       }
     };
@@ -145,6 +157,7 @@ export default class Scatterplot<T> {
   private zoom = zoom().on('zoom', this.onZoom.bind(this));
 
   private tree:Quadtree<T>;
+  private _selection : Quadtree<T>;
 
   constructor(data:T[], private parent:HTMLElement, options?:IScatterplotOptions<T>) {
     //TODO merge options
@@ -170,6 +183,7 @@ export default class Scatterplot<T> {
 
     //generate a quad tree out of the data
     this.tree = quadtree(data, this.options.x, this.options.y);
+    this._selection = quadtree([], this.options.x, this.options.y);
   }
 
   checkResize() {
@@ -186,6 +200,56 @@ export default class Scatterplot<T> {
 
   private get ctx() {
     return this.canvas.getContext('2d');
+  }
+
+  get selection() {
+    return this._selection.data();
+  }
+
+  set selection(selection: T[]) {
+    if (selection.length === 0) {
+      if (this._selection.size() === 0) {
+        return;
+      }
+      this._selection = quadtree([], this.options.x, this.options.y);
+      this.render();
+      return;
+    }
+    //find the delta
+    var changed = false;
+    const s = this.selection;
+    selection.forEach((s_new) => {
+      const i = s.indexOf(s_new);
+      if (i < 0) { //new
+        this._selection.add(s_new);
+        changed = true;
+      } else {
+        s.splice(i, 1); //mark as used
+      }
+    });
+    changed = changed || s.length > 0;
+    //remove removed items
+    this._selection.removeAll(s);
+
+    if (changed) {
+      this.render();
+    }
+  }
+
+  addToSelection(items: T[]) {
+    if (items.length === 0) {
+      return;
+    }
+    this._selection.addAll(items);
+    this.render();
+  }
+
+  removeFromSelection(items: T[]) {
+    if (items.length === 0) {
+      return;
+    }
+    this._selection.removeAll(items);
+    this.render();
   }
 
   render() {
@@ -231,6 +295,8 @@ export default class Scatterplot<T> {
 
   private renderPoints(ctx:CanvasRenderingContext2D, xscale: IScale, yscale: IScale, bounds: {x0: number, y0: number, x1: number, y1: number}) {
     const {x, y} = this.options;
+    var renderer: ISymbolRenderer<T> = null;
+
     function debugNode(color: string, x0: number, y0: number, x1: number, y1: number) {
       ctx.closePath();
       ctx.fillStyle = 'steelblue';
@@ -264,12 +330,7 @@ export default class Scatterplot<T> {
       return true;
     }
 
-    ctx.save();
-
-    //quad tree based iteration
-    const renderer = this.symbol(ctx);
-
-    this.tree.visit((node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0: number, y0: number, x1: number, y1: number) => {
+    function visitTree(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0: number, y0: number, x1: number, y1: number) {
       if (!(<any>node).length) { //is a leaf
         var leaf = <QuadtreeLeaf<T>>node;
         //see https://github.com/d3/d3-quadtree
@@ -284,12 +345,29 @@ export default class Scatterplot<T> {
         //negate, since true means not visit
         return !isVisible(x0, y0, x1, y1);
       }
-    });
+    }
+
+    ctx.save();
+
+    renderer = this.symbol(ctx, ERenderMode.NORMAL);
+    this.tree.visit(visitTree);
+    renderer.done();
+
+    //render selected
+    renderer = this.symbol(ctx, ERenderMode.SELECTED);
+    this._selection.visit(visitTree);
     renderer.done();
 
     //a dummy path to clear the 'to draw' state
     ctx.beginPath();
     ctx.closePath();
+
+    ctx.restore();
+  }
+
+
+  private renderLasso(ctx: CanvasRenderingContext2D) {
+    ctx.save();
 
     ctx.restore();
   }
