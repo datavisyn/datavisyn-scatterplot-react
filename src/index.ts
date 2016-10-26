@@ -2,6 +2,7 @@ import * as d3axis from 'd3-axis';
 import * as d3scale from 'd3-scale';
 import * as d3shape from 'd3-shape';
 import * as d3selection from 'd3-selection';
+import * as d3zoom from 'd3-zoom';
 
 export interface IScale extends d3axis.AxisScale<number> {
   range(range: number[]);
@@ -40,6 +41,7 @@ export function d3Symbol(symbol = d3SymbolCircle, fillStyle:string = 'steelblue'
   return (ctx:CanvasRenderingContext2D, next:IPoorManIterator<any>) => {
     ctx.fillStyle = fillStyle;
     var n:{ x: number, y: number};
+
     while ((n = next()) !== null) {
       ctx.translate(n.x, n.y);
       symbol.draw(ctx, size);
@@ -62,9 +64,10 @@ export function circleSymbol(fillStyle:string = 'steelblue', size = 5):ISymbol<a
   return (ctx:CanvasRenderingContext2D, next:IPoorManIterator<any>) => {
     ctx.fillStyle = fillStyle;
     var n:IDataItem<any>;
+    ctx.beginPath();
     while ((n = next()) !== null) {
+      ctx.moveTo(n.y + r, n.y);
       ctx.arc(n.x, n.y, r, 0, tau);
-      ctx.closePath();
     }
     ctx.fill();
   }
@@ -80,6 +83,8 @@ export interface IScatterplotOptions {
     right?: number;
     bottom?: number;
   };
+
+  scaleExtent?: [number, number];
 }
 
 /**
@@ -116,12 +121,16 @@ export default class Scatterplot<T> {
       top: 10,
       bottom: 20,
       right: 10
-    }
+    },
+    scaleExtent: [1 / 2, 4]
   };
+
+  private zoom = d3zoom.zoom().on('zoom', this.onZoom.bind(this));
 
   constructor(private data:T[], private parent:HTMLElement, options?: IScatterplotOptions) {
     //TODO merge options
 
+    //init dom
     parent.innerHTML = `
       <canvas style="position: absolute; z-index: 1; width: 100%; height: 100%;"></canvas>
       <svg style="position: absolute; z-index: 2; width: ${this.options.margin.left+2}px; height: 100%;">
@@ -131,8 +140,14 @@ export default class Scatterplot<T> {
         <g><g>
       </svg>
     `;
-    this.canvas = <HTMLCanvasElement>parent.children[0];
     parent.style.position = 'relative';
+
+    this.canvas = <HTMLCanvasElement>parent.children[0];
+
+    //register zoom
+    this.zoom.scaleExtent(this.options.scaleExtent);
+    d3selection.select(this.canvas).call(this.zoom);
+
   }
 
   checkResize() {
@@ -164,8 +179,17 @@ export default class Scatterplot<T> {
 
     this.renderAxes();
 
-    ctx.clearRect(margin.left, margin.top, w, h);
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.save();
+    ctx.rect(margin.left, margin.top, w, h);
+    ctx.clip();
+    //get current transform
     this.renderPoints(ctx);
+    ctx.restore();
+  }
+
+  private onZoom() {
+    this.render();
   }
 
   private renderAxes() {
@@ -178,6 +202,9 @@ export default class Scatterplot<T> {
 
   private renderPoints(ctx: CanvasRenderingContext2D){
     const l = this.data.length;
+    const transform = d3zoom.zoomTransform(this.canvas);
+    const tx = (d: T) => transform.x + transform.k*this.xscale(this.x(d));
+    const ty = (d: T) => transform.y + transform.k*this.yscale(this.y(d));
     var i = 0;
 
     //poor man iterator
@@ -186,7 +213,7 @@ export default class Scatterplot<T> {
         return null;
       }
       const d = this.data[i++];
-      return {x: this.xscale(this.x(d)), y: this.yscale(this.y(d)), v : d};
+      return {x: tx(d), y: ty(d), v : d};
     }
     ctx.save();
     this.symbol(ctx, next.bind(this));
