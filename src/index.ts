@@ -6,6 +6,7 @@ import {zoom, zoomTransform, ZoomScale} from 'd3-zoom';
 import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
 import {circleSymbol, ISymbol, ISymbolRenderer, ERenderMode} from './symbol';
 import * as _symbol from './symbol';
+import merge from './merge';
 
 export interface IScale extends AxisScale<number>, ZoomScale {
   range(range:number[]);
@@ -93,7 +94,7 @@ export default class Scatterplot<T> {
   private _selection : Quadtree<T>;
 
   constructor(data:T[], private parent:HTMLElement, options?:IScatterplotOptions<T>) {
-    //TODO merge options
+    this.options = merge(this.options, options);
 
     //init dom
     parent.innerHTML = `
@@ -191,7 +192,7 @@ export default class Scatterplot<T> {
     const transform = zoomTransform(this.canvas);
     const xscale = transform.rescaleX(this.xscale);
     const yscale = transform.rescaleY(this.yscale);
-    return { xscale: xscale, yscale: yscale };
+    return { xscale, yscale };
   }
 
   render() {
