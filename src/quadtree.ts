@@ -1,11 +1,14 @@
 import {Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
 
+const ABORT_TRAVERSAL = true;
+const CONTINUE_TRAVERSAL = false;
+
 export function findAll<T>(tree:Quadtree<T>, x:number, y:number, radius = Infinity) {
   var r = [];
   const adder = r.push.bind(r);
   const radius2 = radius * radius;
   //bounding of search radius
-  const bb = {x0: x - radius, y0: y - radius, x1: x + radius, y1: y + radius};
+  const overlapping = hasOverlap(x - radius, y - radius, x + radius, y + radius);
 
   function inDistance(x1:number, y1:number) {
     const dx = x1 - x;
@@ -22,17 +25,19 @@ export function findAll<T>(tree:Quadtree<T>, x:number, y:number, radius = Infini
     if (xy00In && xy01In && xy10In && xy11In) {
       //all points in radius -> add all
       forEach(node, adder);
-      return true; //abort
+      return ABORT_TRAVERSAL;
     }
 
-
+    if (overlapping(x0, y0, x1, y1)) {
+      //continue search
+      return CONTINUE_TRAVERSAL;
+    }
+    return ABORT_TRAVERSAL;
   }
 
   tree.visit(findItems);
-  // TODO implement
 
-  const single = tree.find(x, y, radius);
-  return single ? [single] : [];
+  return r;
 }
 
 export function forEach<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, callback:(d:T)=>void) {
