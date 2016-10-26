@@ -253,12 +253,24 @@ export default class Scatterplot<T> {
     this.render();
   }
 
+  private get clickRadius() {
+    // FIXME 
+    //compute the data domain radius based on xscale and the scaling factor
+    const view = this.options.clickRadius;
+    const transform = zoomTransform(this.canvas);
+    //tranform from view to data without translation
+    const data = this.xscale.invert(view/transform.k + this.options.margin.left);
+    //const view = this.xscale(base)*transform.k - this.xscale.range()[0]; //skip translation
+    console.log(view, data, transform.k);
+    return data;
+  }
+
   private onClick(event:MouseEvent) {
     const {x, y} = this.getMouseDataPos();
 
     //find closest data item
     //TODO implement a find all to select more than one item
-    const closest = findAll(this.tree, x, y, this.options.clickRadius);
+    const closest = findAll(this.tree, x, y, this.clickRadius);
     this.selection = closest;
   }
 
@@ -270,7 +282,7 @@ export default class Scatterplot<T> {
   private showTooltip(pos: [number, number]) {
     //highlight selected item
     const {x, y} = this.getMouseDataPos(pos);
-    const items = findAll(this.tree, x, y, this.options.clickRadius);
+    const items = findAll(this.tree, x, y, this.clickRadius);
     //TODO highlight item(s) in the plot
     this.canvas.title = items.map(this.options.tooltip).join('\n');
   }
