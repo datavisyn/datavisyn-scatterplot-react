@@ -1,23 +1,30 @@
 const path = require('path');
-const webpack = require('webpack');
 
 module.exports = {
   entry: {
-    vanilla: ['./src/index.js'],
-    react: ['./src/react/index.jsx']
+    vanilla: [path.resolve(__dirname, 'src/index.js')],
+    react: [path.resolve(__dirname, 'src/react/index.jsx')]
   },
   output: {
-    path: require('path').resolve('build'),
+    path: path.resolve(__dirname, 'build'),
     publicPath: '/',
     filename: '[name].js',
-    library: 'umd',
-    libraryName: ['datavisyn','CanvasScatterplot']
+    libraryTarget: 'umd',
+    library: ['datavisyn', 'CanvasScatterplot']
   },
   module: {
     loaders: [{
       test: /\.jsx?$/,
-      exclude: /node_modules/,
-      loader: 'babel'
+      loader: 'babel',
+      include: path.resolve(__dirname, 'src')
     }]
-  }
+  },
+  resolve: {
+    extensions: ['', '.webpack.js', '.web.js', '.js', '.jsx']
+  },
+  externals: {
+    react: 'React',
+    'react-dom': 'ReactDOM'
+  },
+  devtool: 'source-map'
 };

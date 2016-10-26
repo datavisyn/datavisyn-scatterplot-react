@@ -3,21 +3,16 @@
 /*eslint no-console: 0*/
 'use strict';
 
-// Uncomment the following lines to use the react test utilities
-// import React from 'react/addons';
-// const TestUtils = React.addons.TestUtils;
-import createComponent from 'helpers/shallowRenderHelper';
+import CanvasScatterplot from '../src';
 
-import CanvasComponent from 'src/CanvasComponent';
-
-describe('CanvasComponent', () => {
+describe('CanvasScatterplot', () => {
   let m;
 
   beforeEach(() => {
-    m = createComponent(CanvasComponent);
+    m = 'dummy';
   });
 
-  it('should have its component name as default className', () => {
-    expect(m.props.className).to.equal('index');
+  it('dummy', () => {
+    expect(m).to.equal('dummy');
   });
 });

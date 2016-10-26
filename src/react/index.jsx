@@ -1,6 +1,8 @@
 import React from 'react';
+import CanvasScatterplot from '..';
 
-class CanvasComponent extends React.Component {
+
+class CanvasScatterplotComponent extends React.Component {
   render() {
     return (
       <div>
@@ -10,8 +12,8 @@ class CanvasComponent extends React.Component {
   }
 }
 
-CanvasComponent.defaultProps = {
-
+CanvasScatterplotComponent.defaultProps = {
+  className: 'index'
 };
 
-export default CanvasComponent;
+export default CanvasScatterplotComponent;

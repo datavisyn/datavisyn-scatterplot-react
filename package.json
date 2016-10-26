@@ -1,9 +1,8 @@
 {
-  "name": "canvas_scatterplot",
+  "name": "canvas-scatterplot",
   "version": "0.0.1",
   "description": "a canvas based scatterplot implementation",
   "homepage": "https://phovea.caleydo.org",
-  "version": "0.0.1",
   "author": {
     "name": "datavisyn GmbH",
     "email": "contact@datavisyn.io",
@@ -46,22 +45,23 @@
     "babel-preset-es2015": "^6.0.15",
     "babel-preset-react": "^6.0.15",
     "babel-preset-stage-0": "^6.5.0",
-    "webpack": "^1.13.2",
-    "webpack-dev-server": "^1.8.2",
     "chai": "^3.2.0",
     "eslint": "^3.0.0",
     "eslint-loader": "^1.0.0",
     "eslint-plugin-react": "^6.0.0",
+    "isparta-loader": "^2.0.0",
     "karma": "^1.3.0",
     "karma-chai": "^0.1.0",
     "karma-coverage": "^1.0.0",
+    "karma-firefox-launcher": "^1.0.0",
     "karma-mocha": "^1.0.0",
     "karma-mocha-reporter": "^2.0.0",
-    "karma-firefox-launcher": "^1.0.0",
     "karma-sourcemap-loader": "^0.3.5",
     "karma-webpack": "^1.7.0",
     "mocha": "^3.0.0",
-    "react-addons-test-utils": "^15.0.0"
+    "react-addons-test-utils": "^15.0.0",
+    "webpack": "^1.13.2",
+    "webpack-dev-server": "^1.8.2"
   },
   "dependencies": {
     "react": "^15.0.0",
