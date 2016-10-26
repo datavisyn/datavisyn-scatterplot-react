@@ -1,7 +1,7 @@
 import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
 import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye, line as d3line} from 'd3-shape';
-import {select} from 'd3-selection';
+import {select, mouse, event as d3event} from 'd3-selection';
 import {zoom, zoomTransform, ZoomScale} from 'd3-zoom';
 import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
 
@@ -122,6 +122,9 @@ export interface IScatterplotOptions<T> {
    */
   y:IAccessor<T>;
 
+
+  clickRadius?: number;
+
 }
 
 /**
@@ -149,12 +152,13 @@ export default class Scatterplot<T> {
       bottom: 20,
       right: 10
     },
+    clickRadius: 10,
     scaleExtent: [1 / 2, 4],
     x: (d) => (<any>d).x,
     y: (d) => (<any>d).y
   };
 
-  private zoom = zoom().on('zoom', this.onZoom.bind(this));
+  private zoom = zoom().on('zoom', this.onZoom.bind(this)).on('end', this.onZoomEnd.bind(this));
 
   private tree:Quadtree<T>;
   private _selection : Quadtree<T>;
@@ -165,10 +169,10 @@ export default class Scatterplot<T> {
     //init dom
     parent.innerHTML = `
       <canvas style="position: absolute; z-index: 1; width: 100%; height: 100%;"></canvas>
-      <svg style="position: absolute; z-index: 2; width: ${this.options.margin.left + 2}px; height: 100%;">
+      <svg style="pointer-events: none; position: absolute; z-index: 2; width: ${this.options.margin.left + 2}px; height: 100%;">
         <g transform="translate(${this.options.margin.left},0)"><g>
       </svg>
-      <svg style="position: absolute; z-index: 3; width: 100%; height: ${this.options.margin.bottom}px; bottom: 0">
+      <svg style="pointer-events: none; position: absolute; z-index: 3; width: 100%; height: ${this.options.margin.bottom}px; bottom: 0">
         <g><g>
       </svg>
     `;
@@ -179,7 +183,9 @@ export default class Scatterplot<T> {
     //register zoom
     this.zoom
       .scaleExtent(this.options.scaleExtent);
-    select(this.canvas).call(this.zoom);
+    select(this.canvas)
+      .call(this.zoom)
+      .on('click', () => this.onClick(d3event));
 
     //generate a quad tree out of the data
     this.tree = quadtree(data, this.options.x, this.options.y);
@@ -252,6 +258,13 @@ export default class Scatterplot<T> {
     this.render();
   }
 
+  private transformedScales() {
+    const transform = zoomTransform(this.canvas);
+    const xscale = transform.rescaleX(this.xscale);
+    const yscale = transform.rescaleY(this.yscale);
+    return { xscale: xscale, yscale: yscale };
+  }
+
   render() {
     const c = this.canvas,
       ctx = this.ctx,
@@ -263,9 +276,7 @@ export default class Scatterplot<T> {
     this.yscale.range([bounds.y1, bounds.y0]);
 
     //transform scale
-    const transform = zoomTransform(this.canvas);
-    const xscale = transform.rescaleX(this.xscale);
-    const yscale = transform.rescaleY(this.yscale);
+    const { xscale, yscale} = this.transformedScales();
 
     this.renderAxes(xscale, yscale);
 
@@ -282,7 +293,28 @@ export default class Scatterplot<T> {
   }
 
   private onZoom() {
+    // TODO more intelligent depending on zoom kind
+    // intermediate zoom just move the context
     this.render();
+  }
+
+  private onZoomEnd() {
+    this.render();
+  }
+
+  private onClick(event: MouseEvent) {
+    const pos = mouse(this.canvas);
+
+    const { xscale, yscale} = this.transformedScales();
+    const dataPos = [xscale.invert(pos[0]), yscale.invert(pos[1])];
+
+    //find closest data item
+    const closest = this.tree.find(dataPos[0], dataPos[1], this.options.clickRadius);
+    if (closest) {
+      this.selection = [closest];
+    } else {
+      this.selection = [];
+    }
   }
 
   private renderAxes(xscale: IScale, yscale: IScale) {
@@ -353,7 +385,7 @@ export default class Scatterplot<T> {
     this.tree.visit(visitTree);
     renderer.done();
 
-    //render selected
+    //render selected - TODO maybe in own canvas for performance of selection changes
     renderer = this.symbol(ctx, ERenderMode.SELECTED);
     this._selection.visit(visitTree);
     renderer.done();
