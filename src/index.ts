@@ -1,9 +1,11 @@
 import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
-import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye, line as d3line} from 'd3-shape';
+import {line as d3line} from 'd3-shape';
 import {select, mouse, event as d3event} from 'd3-selection';
 import {zoom, zoomTransform, ZoomScale} from 'd3-zoom';
 import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
+import {circleSymbol, ISymbol, ISymbolRenderer, ERenderMode} from './symbol';
+import * as _symbol from './symbol';
 
 export interface IScale extends AxisScale<number>, ZoomScale {
   range(range:number[]);
@@ -22,79 +24,6 @@ export interface IAccessor<T> {
 export interface ISymbolRenderer<T> {
   render(x:number, y:number, d:T);
   done();
-}
-
-export enum ERenderMode {
-  NORMAL,
-  SELECTED,
-  HOVER
-}
-
-export interface ISymbol<T> {
-  (ctx:CanvasRenderingContext2D, mode: ERenderMode): ISymbolRenderer<T>;
-}
-
-/**
- * generic wrapper around d3 symbols for rendering
- * @param symbol the symbol to render
- * @param fillStyle the style applied
- * @param size the size of the symbol
- * @returns {function(CanvasRenderingContext2D, IPoorManIterator): undefined}
- */
-export function d3Symbol(symbol = d3SymbolCircle, fillStyle:string = 'steelblue', size = 5):ISymbol<any> {
-  return (ctx:CanvasRenderingContext2D) => {
-    //before
-    ctx.beginPath();
-    return {
-      //during
-      render: (x:number, y:number) => {
-        ctx.translate(x, y);
-        symbol.draw(ctx, size);
-        ctx.translate(-x, -y);
-      },
-      //after
-      done: () => {
-        ctx.closePath();
-        ctx.fillStyle = fillStyle;
-        ctx.fill();
-      }
-    };
-  }
-}
-
-/**
- * circle symbol renderer (way faster than d3Symbol(d3symbolCircle)
- * @param fillStyle
- * @param size
- * @returns {function(CanvasRenderingContext2D, IPoorManIterator): undefined}
- */
-export function circleSymbol(fillStyle:string = 'steelblue', size = 20):ISymbol<any> {
-  const r = Math.sqrt(size / Math.PI);
-  const tau = 2 * Math.PI;
-
-  const styles = {
-    [ERenderMode.NORMAL]: fillStyle,
-    [ERenderMode.HOVER]: 'orange',
-    [ERenderMode.SELECTED]: 'red'
-  };
-
-  return (ctx:CanvasRenderingContext2D, mode : ERenderMode) => {
-    //before
-    ctx.beginPath();
-    return {
-      //during
-      render: (x:number, y:number) => {
-        ctx.moveTo(x + r, y);
-        ctx.arc(x, y, r, 0, tau);
-      },
-      //after
-      done: () => {
-        ctx.closePath();
-        ctx.fillStyle = styles[mode];
-        ctx.fill();
-      }
-    };
-  }
 }
 
 export interface IScatterplotOptions<T> {
@@ -309,6 +238,7 @@ export default class Scatterplot<T> {
     const dataPos = [xscale.invert(pos[0]), yscale.invert(pos[1])];
 
     //find closest data item
+    //TODO implement a find all to select more than one item
     const closest = this.tree.find(dataPos[0], dataPos[1], this.options.clickRadius);
     if (closest) {
       this.selection = [closest];
@@ -409,14 +339,7 @@ export default class Scatterplot<T> {
  * reexport d3 scale
  */
 export const scale = d3scale;
-
-export const d3SymbolCircle = symbolCircle;
-export const d3SymbolCross = symbolCross;
-export const d3SymbolDiamond = symbolDiamond;
-export const d3SymbolSquare = symbolSquare;
-export const d3SymbolStar = symbolStar;
-export const d3SymbolTriangle = symbolTriangle;
-export const d3SymbolWye = symbolWye;
+export const symbol = _symbol;
 
 export function create<T>(data:T[], canvas:HTMLCanvasElement):Scatterplot<T> {
   return new Scatterplot(data, canvas);
