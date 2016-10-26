@@ -1,20 +1,16 @@
-
-
-class CanvasScatterplot {
-  constructor(data, canvas) {
-    this._data = data;
-    this._canvas = canvas;
-  }
-
-  render() {
-    const c = this._canvas;
-
-    const ctx = c.getContext('2d');
-    ctx.clearRect(0, 0, c.width, c.height);
-
-  }
-
-
-}
-
-export default CanvasScatterplot;
+"use strict";
+var CanvasScatterplot = (function () {
+    function CanvasScatterplot(data, canvas) {
+        this.data = data;
+        this.canvas = canvas;
+    }
+    CanvasScatterplot.prototype.render = function () {
+        var c = this.canvas;
+        var ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, c.width, c.height);
+    };
+    return CanvasScatterplot;
+}());
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = CanvasScatterplot;
+//# sourceMappingURL=index.js.map

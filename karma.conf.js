@@ -23,21 +23,14 @@ module.exports = function(config) {
         },
         webpack: {
           module: {
-            preLoaders: [{
-              test: /\.jsx?$/,
-              exclude: [
-                path.resolve(__dirname, 'src/'),
-                path.resolve(__dirname, 'node_modules/')
-              ],
+            loaders: [{
+              test: /\.tsx?$/,
+              loader: 'awesome-typescript-loader',
+              include: path.resolve(__dirname, 'src/'),
               loader: 'babel'
-            },{ // transpile and instrument only testing sources with isparta
-                test: /\.jsx?$/,
-                include: path.resolve(__dirname, 'src/'),
-                loader: 'isparta'
-              }]
-            },
+            }],
             resolve: {
-              extensions: ['', '.webpack.js', '.web.js', '.js', '.jsx']
+              extensions: ['', '.webpack.js', '.web.js', '.js', 'ts', '.tsx']
             },
             devtool: 'eval'
           },

@@ -2,8 +2,8 @@ const path = require('path');
 
 module.exports = {
   entry: {
-    vanilla: [path.resolve(__dirname, 'src/index.js')],
-    react: [path.resolve(__dirname, 'src/react/index.jsx')]
+    vanilla: [path.resolve(__dirname, 'src/index.ts')],
+    react: [path.resolve(__dirname, 'src/react/index.tsx')]
   },
   output: {
     path: path.resolve(__dirname, 'build'),
@@ -14,13 +14,13 @@ module.exports = {
   },
   module: {
     loaders: [{
-      test: /\.jsx?$/,
-      loader: 'babel',
+      test: /\.tsx?$/,
+      loader: 'awesome-typescript-loader',
       include: path.resolve(__dirname, 'src')
     }]
   },
   resolve: {
-    extensions: ['', '.webpack.js', '.web.js', '.js', '.jsx']
+    extensions: ['', '.webpack.js', '.web.js', '.js', '.ts', '.tsx']
   },
   externals: {
     react: 'React',
