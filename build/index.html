@@ -13,8 +13,10 @@
 
     var data = [];
     console.time('gen');
-    for (var i = 0; i < 100; ++i) {
-      data.push({x: Math.random(), y: Math.random()});
+    var count = 10;
+    for (var i = 0; i < count; ++i) {
+      data.push({x: 100*i/count, y: 100*(count-i)/count});
+      //data.push({x: Math.random(), y: Math.random()});
     }
     console.timeEnd('gen');
     var div = document.querySelector('div');
