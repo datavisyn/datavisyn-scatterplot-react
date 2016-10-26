@@ -3,12 +3,12 @@ import * as d3scale from 'd3-scale';
 import * as d3shape from 'd3-shape';
 
 export interface IScale {
-  (v: number) : number;
-  range(range: number[]);
+  (v:number) : number;
+  range(range:number[]);
 }
 
 export interface IAccessor<T> {
-  (v: T) : number;
+  (v:T) : number;
 }
 
 export interface IPoorManIterator {
@@ -16,13 +16,20 @@ export interface IPoorManIterator {
 }
 
 export interface ISymbol {
-  (ctx: CanvasRenderingContext2D, next: IPoorManIterator): void
+  (ctx:CanvasRenderingContext2D, next:IPoorManIterator): void
 }
 
-export function d3Symbol(symbol = d3shape.symbolCircle, fillStyle: string = 'steelblue', size = 5) {
-  return (ctx: CanvasRenderingContext2D, next: IPoorManIterator) => {
+/**
+ * generic wrapper around d3 symbols for rendering
+ * @param symbol the symbol to render
+ * @param fillStyle the style applied
+ * @param size the size of the symbol
+ * @returns {function(CanvasRenderingContext2D, IPoorManIterator): undefined}
+ */
+export function d3Symbol(symbol = d3SymbolCircle, fillStyle:string = 'steelblue', size = 5):ISymbol {
+  return (ctx:CanvasRenderingContext2D, next:IPoorManIterator) => {
     ctx.fillStyle = fillStyle;
-    var n : { x: number, y: number};
+    var n:{ x: number, y: number};
     while ((n = next()) !== null) {
       ctx.translate(n.x, n.y);
       symbol.draw(ctx, size);
@@ -32,14 +39,19 @@ export function d3Symbol(symbol = d3shape.symbolCircle, fillStyle: string = 'ste
   }
 }
 
-export function circleSymbol(fillStyle: string = 'steelblue', size = 5) {
-  return (ctx: CanvasRenderingContext2D, next: IPoorManIterator) => {
+/**
+ * circle symbol renderer (way faster than d3Symbol(d3symbolCircle)
+ * @param fillStyle
+ * @param size
+ * @returns {function(CanvasRenderingContext2D, IPoorManIterator): undefined}
+ */
+export function circleSymbol(fillStyle:string = 'steelblue', size = 5):ISymbol {
+  const r = Math.sqrt(size / Math.PI);
+  const tau = 2 * Math.PI;
+
+  return (ctx:CanvasRenderingContext2D, next:IPoorManIterator) => {
     ctx.fillStyle = fillStyle;
-
-    const r = Math.sqrt(size / Math.PI);
-    const tau = 2*Math.PI;
-
-    var n : { x: number, y: number};
+    var n:{ x: number, y: number};
     while ((n = next()) !== null) {
       ctx.arc(n.x, n.y, r, 0, tau);
     }
@@ -51,14 +63,29 @@ export function circleSymbol(fillStyle: string = 'steelblue', size = 5) {
  * a class for rendering a scatterplot in a canvas
  */
 export default class CanvasScatterplot<T> {
-  x: IAccessor<T> = (v) => (<any>v).x;
-  xscale : IScale = d3scale.scaleLinear().domain([0, 1]);
-  y: IAccessor<T> = (v) => (<any>v).y;
-  yscale : IScale = d3scale.scaleLinear().domain([0, 1]);
+  /**
+   * x accessor of the data
+   * @param d
+   */
+  x:IAccessor<T> = (d) => (<any>d).x;
+  /**
+   * x scale applied to value
+   */
+  xscale:IScale = d3scale.scaleLinear().domain([0, 1]);
+  /**
+   * y accessor of the data
+   * @param d
+   */
+  y:IAccessor<T> = (d) => (<any>d).y;
 
-  symbol: ISymbol = circleSymbol();
+  /**
+   * y scale applied to value
+   */
+  yscale:IScale = d3scale.scaleLinear().domain([0, 1]);
 
-  constructor(private data: T[], private canvas: HTMLCanvasElement) {
+  symbol:ISymbol = circleSymbol();
+
+  constructor(private data:T[], private canvas:HTMLCanvasElement) {
 
   }
 
@@ -94,7 +121,7 @@ export default class CanvasScatterplot<T> {
         return null;
       }
       const d = this.data[i++];
-      return { x : this.xscale(this.x(d)), y: this.yscale(this.y(d)) };
+      return {x: this.xscale(this.x(d)), y: this.yscale(this.y(d))};
     }
 
     ctx.save();
@@ -108,6 +135,15 @@ export default class CanvasScatterplot<T> {
  */
 export const scale = d3scale;
 
-export function create<T>(data: T[], canvas: HTMLCanvasElement): CanvasScatterplot<T> {
+
+export const d3SymbolCircle = d3shape.symbolCircle;
+export const d3SymbolCross = d3shape.symbolCross;
+export const d3SymbolDiamond = d3shape.symbolDiamond;
+export const d3SymbolSquare = d3shape.symbolSquare;
+export const d3SymbolStar = d3shape.symbolStar;
+export const d3SymbolTriangle = d3shape.symbolTriangle;
+export const d3SymbolWye = d3shape.symbolWye;
+
+export function create<T>(data:T[], canvas:HTMLCanvasElement):CanvasScatterplot<T> {
   return new CanvasScatterplot(data, canvas);
 }
