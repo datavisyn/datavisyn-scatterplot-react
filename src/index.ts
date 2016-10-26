@@ -1,12 +1,13 @@
 import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
-import {line as d3line} from 'd3-shape';
 import {select, mouse, event as d3event} from 'd3-selection';
 import {zoom, zoomTransform, ZoomScale} from 'd3-zoom';
 import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
 import {circleSymbol, ISymbol, ISymbolRenderer, ERenderMode} from './symbol';
 import * as _symbol from './symbol';
 import merge from './merge';
+import {findAll, forEach as forEachInNode, isLeafNode} from './quadtree';
+import Lasso from './lasso';
 
 export interface IScale extends AxisScale<number>, ZoomScale {
   range(range:number[]);
@@ -99,6 +100,8 @@ export default class Scatterplot<T> {
 
   private showTooltipHandle = -1;
 
+  private lasso = new Lasso();
+
   constructor(data:T[], private parent:HTMLElement, options?:IScatterplotOptions<T>) {
     this.options = merge(this.options, options);
 
@@ -146,6 +149,10 @@ export default class Scatterplot<T> {
     return this.canvas.getContext('2d');
   }
 
+  onSelectionChanged(self: Scatterplot<T>) {
+    // hook dummy
+  }
+
   get selection() {
     return this._selection.data();
   }
@@ -156,6 +163,7 @@ export default class Scatterplot<T> {
         return;
       }
       this._selection = quadtree([], this.options.x, this.options.y);
+      this.onSelectionChanged(this);
       this.render();
       return;
     }
@@ -176,6 +184,7 @@ export default class Scatterplot<T> {
     this._selection.removeAll(s);
 
     if (changed) {
+      this.onSelectionChanged(this);
       this.render();
     }
   }
@@ -185,6 +194,7 @@ export default class Scatterplot<T> {
       return;
     }
     this._selection.addAll(items);
+    this.onSelectionChanged(this);
     this.render();
   }
 
@@ -193,6 +203,7 @@ export default class Scatterplot<T> {
       return;
     }
     this._selection.removeAll(items);
+    this.onSelectionChanged(this);
     this.render();
   }
 
@@ -228,6 +239,8 @@ export default class Scatterplot<T> {
     this.renderPoints(ctx, xscale, yscale, bounds);
 
     ctx.restore();
+
+    this.lasso.render(ctx);
   }
 
   private onZoom() {
@@ -245,12 +258,8 @@ export default class Scatterplot<T> {
 
     //find closest data item
     //TODO implement a find all to select more than one item
-    const closest = this.tree.find(x, y, this.options.clickRadius);
-    if (closest) {
-      this.selection = [closest];
-    } else {
-      this.selection = [];
-    }
+    const closest = findAll(this.tree, x, y, this.options.clickRadius);
+    this.selection = closest;
   }
 
   private getMouseDataPos(pos = mouse(this.canvas)) {
@@ -259,9 +268,11 @@ export default class Scatterplot<T> {
   }
 
   private showTooltip(pos: [number, number]) {
+    //highlight selected item
     const {x, y} = this.getMouseDataPos(pos);
-    const item = this.tree.find(x, y, this.options.clickRadius);
-    this.canvas.title = item ? this.options.tooltip(item) : '';
+    const items = findAll(this.tree, x, y, this.options.clickRadius);
+    //TODO highlight item(s) in the plot
+    this.canvas.title = items.map(this.options.tooltip).join('\n');
   }
 
   private onMouseMove(event:MouseEvent) {
@@ -269,6 +280,7 @@ export default class Scatterplot<T> {
     //clear old
     clearTimeout(this.showTooltipHandle);
     const pos = mouse(this.canvas);
+    //TODO find a more efficient way or optimize the timing
     this.showTooltipHandle = setTimeout(this.showTooltip.bind(this, pos), this.options.tooltipDelay);
   }
 
@@ -323,14 +335,8 @@ export default class Scatterplot<T> {
     }
 
     function visitTree(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0:number, y0:number, x1:number, y1:number) {
-      if (!(<any>node).length) { //is a leaf
-        var leaf = <QuadtreeLeaf<T>>node;
-        //see https://github.com/d3/d3-quadtree
-        do {
-          let d = leaf.data;
-          renderer.render(xscale(x(d)), yscale(y(d)), d);
-          //console.log(x(d), y(d), '=',xscale(x(d)), yscale(y(d)));
-        } while ((leaf = leaf.next) != null);
+      if (isLeafNode(node)) { //is a leaf
+        forEachInNode(node, (d) => renderer.render(xscale(x(d)), yscale(y(d)), d));
         return true; //don't visit
       } else {
         //console.log(x0,y0,x1,y1, '=',xscale(x0), yscale(y0), xscale(x1), yscale(y1));
@@ -353,13 +359,6 @@ export default class Scatterplot<T> {
     //a dummy path to clear the 'to draw' state
     ctx.beginPath();
     ctx.closePath();
-
-    ctx.restore();
-  }
-
-
-  private renderLasso(ctx:CanvasRenderingContext2D) {
-    ctx.save();
 
     ctx.restore();
   }
