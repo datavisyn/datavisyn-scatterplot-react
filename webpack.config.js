@@ -10,7 +10,7 @@ module.exports = {
     publicPath: '/',
     filename: '[name].js',
     libraryTarget: 'umd',
-    library: ['datavisyn', 'CanvasScatterplot']
+    library: ['datavisyn', 'scatterplot']
   },
   module: {
     loaders: [{

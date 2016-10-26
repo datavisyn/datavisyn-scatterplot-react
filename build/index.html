@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+
+</head>
+<body>
+<canvas width="300" height="300">
+
+</canvas>
+<script src="vanilla.js"></script>
+<script>
+  (function () {
+
+    var data = [];
+    console.time('gen');
+    for (var i = 0; i < 10000; ++i) {
+      data.push({x: Math.random(), y: Math.random()});
+    }
+    console.timeEnd('gen');
+    var canvas = document.querySelector('canvas');
+
+    var s = new datavisyn.scatterplot.create(data, canvas);
+    console.time('render');
+    s.render();
+    console.timeEnd('render');
+  })();
+</script>
+</body>
+</html>
