@@ -1,10 +1,11 @@
 import * as d3axis from 'd3-axis';
 import * as d3scale from 'd3-scale';
 import * as d3shape from 'd3-shape';
+import * as d3selection from 'd3-selection';
 
-export interface IScale {
-  (v:number) : number;
-  range(range:number[]);
+export interface IScale extends d3axis.AxisScale<number> {
+  range(range: number[]);
+  range(): number[];
 }
 
 export interface IAccessor<T> {
@@ -68,6 +69,18 @@ export function circleSymbol(fillStyle:string = 'steelblue', size = 5):ISymbol<a
   }
 }
 
+export interface IScatterplotOptions {
+  /**
+   * default: 20
+   */
+  margin?: {
+    left?: number;
+    top?: number;
+    right?: number;
+    bottom?: number;
+  };
+}
+
 /**
  * a class for rendering a scatterplot in a canvas
  */
@@ -94,19 +107,31 @@ export default class Scatterplot<T> {
 
   symbol:ISymbol<T> = circleSymbol();
 
-  private canvas: HTMLCanvasElement = document.createElement('canvas');
-  private svg : SVGSVGElement = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  private canvas: HTMLCanvasElement;
 
-  constructor(private data:T[], parent:HTMLElement) {
-    parent.appendChild(this.canvas);
-    parent.appendChild(this.svg);
+  private options: IScatterplotOptions = {
+    margin: {
+      left: 40,
+      top: 10,
+      bottom: 20,
+      right: 10
+    }
+  };
+
+  constructor(private data:T[], private parent:HTMLElement, options?: IScatterplotOptions) {
+    //TODO merge options
+
+    parent.innerHTML = `
+      <canvas style="position: absolute; z-index: 1; width: 100%; height: 100%;"></canvas>
+      <svg style="position: absolute; z-index: 2; width: ${this.options.margin.left+2}px; height: 100%;">
+        <g transform="translate(${this.options.margin.left},0)"><g>
+      </svg>
+      <svg style="position: absolute; z-index: 3; width: 100%; height: ${this.options.margin.bottom}px; bottom: 0">
+        <g><g>
+      </svg>
+    `;
+    this.canvas = <HTMLCanvasElement>parent.children[0];
     parent.style.position = 'relative';
-    [this.canvas, this.svg].forEach((s : HTMLElement | SVGStylable, i: number) => {
-      s.style.position = 'absolute';
-      s.style.zIndex = String(i);
-      s.style.width = '100%';
-      s.style.height = '100%';
-    })
   }
 
   checkResize() {
@@ -127,13 +152,30 @@ export default class Scatterplot<T> {
 
   render() {
     const c = this.canvas,
-      ctx = this.ctx;
+      ctx = this.ctx,
+      margin = this.options.margin,
+      w = c.clientWidth - margin.left - margin.right,
+      h = c.clientHeight - margin.top - margin.bottom;
     this.checkResize();
 
-    ctx.clearRect(0, 0, c.clientWidth, c.clientWidth);
-    this.xscale.range([0, c.clientWidth]);
-    this.yscale.range([c.clientHeight, 0]);
+    this.xscale.range([margin.left, w]);
+    this.yscale.range([h + margin.top, margin.top]);
 
+    this.renderAxes();
+
+    ctx.clearRect(margin.left, margin.top, w, h);
+    this.renderPoints(ctx);
+  }
+
+  private renderAxes() {
+    const left = d3axis.axisLeft(this.yscale),
+      bottom = d3axis.axisBottom(this.xscale),
+      $parent = d3selection.select(this.parent);
+    $parent.select('svg g').call(left);
+    $parent.select('svg:last-of-type g').call(bottom);
+  }
+
+  private renderPoints(ctx: CanvasRenderingContext2D){
     const l = this.data.length;
     var i = 0;
 
@@ -145,7 +187,6 @@ export default class Scatterplot<T> {
       const d = this.data[i++];
       return {x: this.xscale(this.x(d)), y: this.yscale(this.y(d)), v : d};
     }
-
     ctx.save();
     this.symbol(ctx, next.bind(this));
     ctx.restore();

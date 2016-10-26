@@ -6,7 +6,7 @@
 
 </head>
 <body>
-<div style="width: 500px; height: 500px"></div>
+<div style="width: 520px; height: 500px"></div>
 <script src="vanilla.js"></script>
 <script>
   (function () {
@@ -14,7 +14,7 @@
     var data = [];
     console.time('gen');
     for (var i = 0; i < 10000; ++i) {
-      data.push({x: Math.random(), y: Math.random()});
+      data.push({x: i/10000, y: Math.random()});
     }
     console.timeEnd('gen');
     var div = document.querySelector('div');
