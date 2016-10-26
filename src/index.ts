@@ -2,12 +2,15 @@ import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
 import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye} from 'd3-shape';
 import {select} from 'd3-selection';
-import {zoom, zoomTransform} from 'd3-zoom';
+import {zoom, zoomTransform, ZoomScale} from 'd3-zoom';
 import {quadtree, Quadtree} from 'd3-quadtree';
 
-export interface IScale extends AxisScale<number> {
+export interface IScale extends AxisScale<number>, ZoomScale {
   range(range: number[]);
   range(): number[];
+  domain(): number[];
+  domain(domain: number[]);
+  copy(): IScale;
 }
 
 export interface IAccessor<T> {
@@ -203,8 +206,9 @@ export default class Scatterplot<T> {
   }
 
   private renderAxes() {
-    const left = axisLeft(this.yscale),
-      bottom = axisBottom(this.xscale),
+    const transform = zoomTransform(this.canvas);
+    const left = axisLeft(transform.rescaleY(this.yscale)),
+      bottom = axisBottom(transform.rescaleX(this.xscale)),
       $parent = select(this.parent);
     $parent.select('svg g').call(left);
     $parent.select('svg:last-of-type g').call(bottom);
