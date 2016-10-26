@@ -64,6 +64,7 @@ export function circleSymbol(fillStyle:string = 'steelblue', size = 5):ISymbol<a
     var n:IDataItem<any>;
     while ((n = next()) !== null) {
       ctx.arc(n.x, n.y, r, 0, tau);
+      ctx.closePath();
     }
     ctx.fill();
   }
