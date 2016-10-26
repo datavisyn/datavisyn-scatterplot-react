@@ -6,9 +6,7 @@
 
 </head>
 <body>
-<canvas width="300" height="300">
-
-</canvas>
+<div style="width: 500px; height: 500px"></div>
 <script src="vanilla.js"></script>
 <script>
   (function () {
@@ -19,9 +17,9 @@
       data.push({x: Math.random(), y: Math.random()});
     }
     console.timeEnd('gen');
-    var canvas = document.querySelector('canvas');
+    var div = document.querySelector('div');
 
-    var s = new datavisyn.scatterplot.create(data, canvas);
+    var s = new datavisyn.scatterplot.create(data, div);
     console.time('render');
     s.render();
     console.timeEnd('render');
