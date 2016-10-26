@@ -13,18 +13,22 @@
 
     var data = [];
     console.time('gen');
-    var count = 10;
+    var count = 10000;
     for (var i = 0; i < count; ++i) {
-      data.push({x: 100*i/count, y: 100*(count-i)/count});
-      //data.push({x: Math.random(), y: Math.random()});
+      //data.push({x: 100*i/count, y: 100*(count-i)/count});
+      data.push({x: Math.random()*100, y: Math.random()*100});
     }
     console.timeEnd('gen');
     var div = document.querySelector('div');
 
     var s = new datavisyn.scatterplot.create(data, div);
-    console.time('render');
+    var bak = s.render.bind(s);
+    s.render = function() {
+      console.time('render');
+      bak();
+      console.timeEnd('render');
+    };
     s.render();
-    console.timeEnd('render');
   })();
 </script>
 </body>
