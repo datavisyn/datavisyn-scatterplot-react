@@ -1,10 +1,11 @@
-import * as d3axis from 'd3-axis';
+import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
-import * as d3shape from 'd3-shape';
-import * as d3selection from 'd3-selection';
-import * as d3zoom from 'd3-zoom';
+import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye} from 'd3-shape';
+import {select} from 'd3-selection';
+import {zoom, zoomTransform} from 'd3-zoom';
+import {quadtree, Quadtree} from 'd3-quadtree';
 
-export interface IScale extends d3axis.AxisScale<number> {
+export interface IScale extends AxisScale<number> {
   range(range: number[]);
   range(): number[];
 }
@@ -73,7 +74,7 @@ export function circleSymbol(fillStyle:string = 'steelblue', size = 5):ISymbol<a
   }
 }
 
-export interface IScatterplotOptions {
+export interface IScatterplotOptions<T> {
   /**
    * default: 20
    */
@@ -85,6 +86,19 @@ export interface IScatterplotOptions {
   };
 
   scaleExtent?: [number, number];
+
+  /**
+   * x accessor of the data
+   * @param d
+   */
+  x:IAccessor<T>;
+
+  /**
+   * y accessor of the data
+   * @param d
+   */
+  y:IAccessor<T>;
+
 }
 
 /**
@@ -92,19 +106,9 @@ export interface IScatterplotOptions {
  */
 export default class Scatterplot<T> {
   /**
-   * x accessor of the data
-   * @param d
-   */
-  x:IAccessor<T> = (d) => (<any>d).x;
-  /**
    * x scale applied to value
    */
   xscale:IScale = d3scale.scaleLinear().domain([0, 1]);
-  /**
-   * y accessor of the data
-   * @param d
-   */
-  y:IAccessor<T> = (d) => (<any>d).y;
 
   /**
    * y scale applied to value
@@ -115,19 +119,23 @@ export default class Scatterplot<T> {
 
   private canvas: HTMLCanvasElement;
 
-  private options: IScatterplotOptions = {
+  private options: IScatterplotOptions<T> = {
     margin: {
       left: 40,
       top: 10,
       bottom: 20,
       right: 10
     },
-    scaleExtent: [1 / 2, 4]
+    scaleExtent: [1 / 2, 4],
+    x: (d) => (<any>d).x,
+    y: (d) => (<any>d).y
   };
 
-  private zoom = d3zoom.zoom().on('zoom', this.onZoom.bind(this));
+  private zoom = zoom().on('zoom', this.onZoom.bind(this));
 
-  constructor(private data:T[], private parent:HTMLElement, options?: IScatterplotOptions) {
+  private tree: Quadtree<T>;
+
+  constructor(data:T[], private parent:HTMLElement, options?: IScatterplotOptions<T>) {
     //TODO merge options
 
     //init dom
@@ -146,8 +154,10 @@ export default class Scatterplot<T> {
 
     //register zoom
     this.zoom.scaleExtent(this.options.scaleExtent);
-    d3selection.select(this.canvas).call(this.zoom);
+    select(this.canvas).call(this.zoom);
 
+    //generate a quad tree out of the data
+    this.tree = quadtree(data, this.options.x, this.options.x);
   }
 
   checkResize() {
@@ -193,18 +203,25 @@ export default class Scatterplot<T> {
   }
 
   private renderAxes() {
-    const left = d3axis.axisLeft(this.yscale),
-      bottom = d3axis.axisBottom(this.xscale),
-      $parent = d3selection.select(this.parent);
+    const left = axisLeft(this.yscale),
+      bottom = axisBottom(this.xscale),
+      $parent = select(this.parent);
     $parent.select('svg g').call(left);
     $parent.select('svg:last-of-type g').call(bottom);
   }
 
   private renderPoints(ctx: CanvasRenderingContext2D){
+    const transform = zoomTransform(this.canvas);
+    const {x, y} = this.options;
+    const tx = (d: T) => transform.x + transform.k*this.xscale(x(d));
+    const ty = (d: T) => transform.y + transform.k*this.yscale(y(d));
+
+    /*
     const l = this.data.length;
-    const transform = d3zoom.zoomTransform(this.canvas);
-    const tx = (d: T) => transform.x + transform.k*this.xscale(this.x(d));
-    const ty = (d: T) => transform.y + transform.k*this.yscale(this.y(d));
+    //quad tree based iteration
+    //see https://github.com/d3/d3-quadtree
+    if (!node.length) do console.log(node.data); while (node = node.next);
+
     var i = 0;
 
     //poor man iterator
@@ -218,6 +235,7 @@ export default class Scatterplot<T> {
     ctx.save();
     this.symbol(ctx, next.bind(this));
     ctx.restore();
+    */
   }
 }
 
@@ -226,14 +244,13 @@ export default class Scatterplot<T> {
  */
 export const scale = d3scale;
 
-
-export const d3SymbolCircle = d3shape.symbolCircle;
-export const d3SymbolCross = d3shape.symbolCross;
-export const d3SymbolDiamond = d3shape.symbolDiamond;
-export const d3SymbolSquare = d3shape.symbolSquare;
-export const d3SymbolStar = d3shape.symbolStar;
-export const d3SymbolTriangle = d3shape.symbolTriangle;
-export const d3SymbolWye = d3shape.symbolWye;
+export const d3SymbolCircle = symbolCircle;
+export const d3SymbolCross = symbolCross;
+export const d3SymbolDiamond = symbolDiamond;
+export const d3SymbolSquare = symbolSquare;
+export const d3SymbolStar = symbolStar;
+export const d3SymbolTriangle = symbolTriangle;
+export const d3SymbolWye = symbolWye;
 
 export function create<T>(data:T[], canvas:HTMLCanvasElement):Scatterplot<T> {
   return new Scatterplot(data, canvas);
