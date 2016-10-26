@@ -6,7 +6,7 @@ import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtre
 import {circleSymbol, ISymbol, ISymbolRenderer, ERenderMode} from './symbol';
 import * as _symbol from './symbol';
 import merge from './merge';
-import {findAll, forEach as forEachInNode, isLeafNode} from './quadtree';
+import {findAll, forEach as forEachInNode, isLeafNode, hasOverlap} from './quadtree';
 import Lasso from './lasso';
 
 export interface IScale extends AxisScale<number>, ZoomScale {
@@ -315,24 +315,12 @@ export default class Scatterplot<T> {
 
     }
 
-    const dbounds = {
-      x0: xscale.invert(bounds.x0),
-      x1: xscale.invert(bounds.x1),
-      //since y domain is inverted
-      y1: yscale.invert(bounds.y0),
-      y0: yscale.invert(bounds.y1),
-    };
-
-    function isVisible(x0:number, y0:number, x1:number, y1:number) {
-      //if the 1er points are small than 0er or 0er bigger than 1er than outside
-      if (x1 < dbounds.x0 || y1 < dbounds.y0 || x0 > dbounds.x1 || y0 > dbounds.y1) {
-        //debugNode('rgba(255,0,0,0.2)', x0, y0, x1, y1);
-        return false;
-      }
-      //debugNode('rgba(0,255,0,0.2)', x0, y0, x1, y1);
-      //inside or partial overlap
-      return true;
-    }
+    const isVisible = hasOverlap(xscale.invert(bounds.x0),
+      /*since y domain is inverted*/
+      yscale.invert(bounds.y1),
+      xscale.invert(bounds.x1),
+      yscale.invert(bounds.y0)
+    );
 
     function visitTree(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0:number, y0:number, x1:number, y1:number) {
       if (isLeafNode(node)) { //is a leaf
