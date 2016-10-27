@@ -21,10 +21,8 @@ module.exports = {
   },
   resolve: {
     extensions: ['.webpack.js', '.web.js', '.js', '.ts', '.tsx'],
-    modules: [
-      path.resolve(__dirname, '/src'),
-      'node_modules'
-    ]
+
+    modules: [path.resolve(__dirname, 'src'), 'node_modules']
   },
   externals: {
     react: 'React',

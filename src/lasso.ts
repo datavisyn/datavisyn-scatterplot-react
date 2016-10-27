@@ -19,7 +19,6 @@ export default class Lasso {
     ctx.lineWidth = 5;
     ctx.strokeStyle = 'rgba(0,0,0,0.5)';
     ctx.stroke();
-
     ctx.restore();
   }
 }

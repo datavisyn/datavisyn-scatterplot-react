@@ -3,8 +3,9 @@
     "module": "es6",
     "target": "es5",
     "noImplicitAny": false,
-    "sourceMap": true,
+    "sourceMap": false,
     "jsx": "react",
+    "moduleResolution": "node",
     "lib": ["dom", "es2015"]
 	},
   "include": [
