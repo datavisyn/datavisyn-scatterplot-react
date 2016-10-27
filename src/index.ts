@@ -57,8 +57,10 @@ export interface IScatterplotOptions<T> {
   clickRadius?: number;
 
   tooltipDelay?: number;
-  tooltip?(d: T): string;
+  tooltip?(d:T): string;
 }
+
+const NORMALIZED_RANGE = [0, 100];
 
 /**
  * a class for rendering a scatterplot in a canvas
@@ -73,6 +75,11 @@ export default class Scatterplot<T> {
    * y scale applied to valuee
    */
   yscale:IScale = d3scale.scaleLinear().domain([0, 100]);
+
+  private normalized2pixel = {
+    x: d3scale.scaleLinear().domain(NORMALIZED_RANGE),
+    y: d3scale.scaleLinear().domain(NORMALIZED_RANGE)
+  };
 
   symbol:ISymbol<T> = circleSymbol();
 
@@ -129,8 +136,11 @@ export default class Scatterplot<T> {
       .on('mousemove', () => this.onMouseMove(d3event));
 
     //generate a quad tree out of the data
-    this.tree = quadtree(data, this.options.x, this.options.y);
-    this._selection = quadtree([], this.options.x, this.options.y);
+    //work on a normalized dimension to avoid hazzling
+    const domain2normalizedX = this.xscale.copy().range(NORMALIZED_RANGE);
+    const domain2normalizedY = this.yscale.copy().range(NORMALIZED_RANGE);
+    this.tree = quadtree(data, (d) => domain2normalizedX(this.options.x(d)), (d) => domain2normalizedY(this.options.y(d)));
+    this._selection = quadtree([], this.tree.x(), this.tree.y());
   }
 
   checkResize() {
@@ -149,7 +159,7 @@ export default class Scatterplot<T> {
     return this.canvas.getContext('2d');
   }
 
-  onSelectionChanged(self: Scatterplot<T>) {
+  onSelectionChanged(self:Scatterplot<T>) {
     // hook dummy
   }
 
@@ -162,7 +172,7 @@ export default class Scatterplot<T> {
       if (this._selection.size() === 0) {
         return;
       }
-      this._selection = quadtree([], this.options.x, this.options.y);
+      this._selection = quadtree([], this.tree.x(), this.tree.y());
       this.onSelectionChanged(this);
       this.render();
       return;
@@ -223,6 +233,8 @@ export default class Scatterplot<T> {
 
     this.xscale.range([bounds.x0, bounds.x1]);
     this.yscale.range([bounds.y1, bounds.y0]);
+    this.normalized2pixel.x.range(this.xscale.range());
+    this.normalized2pixel.y.range(this.yscale.range());
 
     //transform scale
     const { xscale, yscale} = this.transformedScales();
@@ -236,7 +248,14 @@ export default class Scatterplot<T> {
     ctx.rect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
     ctx.clip();
 
-    this.renderPoints(ctx, xscale, yscale, bounds);
+
+    const { n2pX, n2pY} = this.transformedNormalized2PixelScales();
+    const nx = (v) => n2pX.invert(v),
+      ny = (v) => n2pY.invert(v);
+    //inverted y scale
+    const isNodeVisible = hasOverlap(nx(bounds.x0), ny(bounds.y1), nx(bounds.x1), ny(bounds.y0));
+
+    this.renderPoints(ctx, xscale, yscale, isNodeVisible);
 
     ctx.restore();
 
@@ -253,36 +272,50 @@ export default class Scatterplot<T> {
     this.render();
   }
 
-  private get clickRadius() {
-    // FIXME
-    //compute the data domain radius based on xscale and the scaling factor
-    const view = this.options.clickRadius;
-    const transform = zoomTransform(this.canvas);
-    //tranform from view to data without translation
-    const data = this.xscale.invert(view/transform.k + this.options.margin.left);
-    //const view = this.xscale(base)*transform.k - this.xscale.range()[0]; //skip translation
-    console.log(view, data, transform.k);
-    return data;
-  }
-
   private onClick(event:MouseEvent) {
-    const {x, y} = this.getMouseDataPos();
+    const {x, y, clickRadius} = this.getMouseNormalizedPos();
 
     //find closest data item
     //TODO implement a find all to select more than one item
-    const closest = findAll(this.tree, x, y, this.clickRadius);
+    const closest = findAll(this.tree, x, y, clickRadius);
     this.selection = closest;
   }
 
-  private getMouseDataPos(pos = mouse(this.canvas)) {
-    const {xscale, yscale} = this.transformedScales();
-    return {x: xscale.invert(pos[0]), y: yscale.invert(pos[1])};
+  private getMouseNormalizedPos(pixelpos = mouse(this.canvas)) {
+    const { n2pX, n2pY, transform} = this.transformedNormalized2PixelScales();
+
+    function rangeRange(s:IScale) {
+      const range = s.range();
+      return Math.abs(range[1] - range[0]);
+    }
+
+    const computeClickRadius = () => {
+      //compute the data domain radius based on xscale and the scaling factor
+      const view = this.options.clickRadius;
+      const viewSize = transform.k * Math.min(rangeRange(this.normalized2pixel.x), rangeRange(this.normalized2pixel.y));
+      const normalizedSize = NORMALIZED_RANGE[1];
+      //tranform from view to data without translation
+      const normalized = view / viewSize * normalizedSize;
+      //const view = this.xscale(base)*transform.k - this.xscale.range()[0]; //skip translation
+      console.log(view, viewSize, transform.k, normalizedSize, normalized);
+      return normalized;
+    };
+
+    const clickRadius = computeClickRadius();
+    return {x: n2pX.invert(pixelpos[0]), y: n2pY.invert(pixelpos[1]), clickRadius};
   }
 
-  private showTooltip(pos: [number, number]) {
+  private transformedNormalized2PixelScales() {
+    const transform = zoomTransform(this.canvas);
+    const n2pX = transform.rescaleX(this.normalized2pixel.x);
+    const n2pY = transform.rescaleY(this.normalized2pixel.y);
+    return {transform, n2pX, n2pY};
+  };
+
+  private showTooltip(pos:[number, number]) {
     //highlight selected item
-    const {x, y} = this.getMouseDataPos(pos);
-    const items = findAll(this.tree, x, y, this.clickRadius);
+    const {x, y, clickRadius} = this.getMouseNormalizedPos(pos);
+    const items = findAll(this.tree, x, y, clickRadius);
     //TODO highlight item(s) in the plot
     this.canvas.title = items.map(this.options.tooltip).join('\n');
   }
@@ -296,7 +329,7 @@ export default class Scatterplot<T> {
     this.showTooltipHandle = setTimeout(this.showTooltip.bind(this, pos), this.options.tooltipDelay);
   }
 
-  private onMouseLeave(event: MouseEvent) {
+  private onMouseLeave(event:MouseEvent) {
     clearTimeout(this.showTooltipHandle);
     this.showTooltipHandle = -1;
   }
@@ -309,7 +342,7 @@ export default class Scatterplot<T> {
     $parent.select('svg:last-of-type g').call(bottom);
   }
 
-  private renderPoints(ctx:CanvasRenderingContext2D, xscale:IScale, yscale:IScale, bounds:{x0: number, y0: number, x1: number, y1: number}) {
+  private renderPoints(ctx:CanvasRenderingContext2D, xscale:IScale, yscale:IScale, isNodeVisible:(x0:number, y0:number, x1:number, y1:number)=>boolean) {
     const {x, y} = this.options;
     var renderer:ISymbolRenderer<T> = null;
 
@@ -327,15 +360,8 @@ export default class Scatterplot<T> {
 
     }
 
-    const isVisible = hasOverlap(xscale.invert(bounds.x0),
-      /*since y domain is inverted*/
-      yscale.invert(bounds.y1),
-      xscale.invert(bounds.x1),
-      yscale.invert(bounds.y0)
-    );
-
     function visitTree(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0:number, y0:number, x1:number, y1:number) {
-      if (!isVisible(x0, y0, x1, y1)) {
+      if (!isNodeVisible(x0, y0, x1, y1)) {
         return ABORT_TRAVERSAL;
       }
       if (isLeafNode(node)) { //is a leaf
