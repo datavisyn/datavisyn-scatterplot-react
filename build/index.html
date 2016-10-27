@@ -2,33 +2,59 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Title</title>
+  <title>Scatterplot Test</title>
 
 </head>
 <body>
+<h1>
+  Scatterplot test
+</h1>
+<label>Number of Points:
+    <input type="number" step="1000" value="10000">
+  </label>
+<section>
 <div style="width: 520px; height: 500px"></div>
+</section>
+<section>
+<pre>
+  Notes:
+   * drag/zoom as usual
+   * tooltip after a while
+   * lasso selection using ctrl/alt key
+   * single selection should work
+   * debug output with rendering information
+   * build with Typescript + Webpack2
+</pre>
+</section>
 <script src="vanilla.js"></script>
 <script>
   (function () {
+    function rebuild(count) {
+      var data = [];
+      console.time('gen');
+      for (var i = 0; i < count; ++i) {
+        //data.push({x: 100*i/count, y: 100*(count-i)/count});
+        data.push({x: Math.random()*100, y: Math.random()*100});
+      }
+      console.timeEnd('gen');
+      var div = document.querySelector('div');
+      div.innerHTML = ''; //clear existing stuff
 
-    var data = [];
-    console.time('gen');
-    var count = 10000;
-    for (var i = 0; i < count; ++i) {
-      //data.push({x: 100*i/count, y: 100*(count-i)/count});
-      data.push({x: Math.random()*100, y: Math.random()*100});
+      var s = new datavisyn.scatterplot.create(data, div);
+      //hack render to have information
+      var bak = s.render.bind(s);
+      s.render = function() {
+        console.time('render');
+        bak();
+        console.timeEnd('render');
+      };
+      s.render();
     }
-    console.timeEnd('gen');
-    var div = document.querySelector('div');
 
-    var s = new datavisyn.scatterplot.create(data, div);
-    var bak = s.render.bind(s);
-    s.render = function() {
-      console.time('render');
-      bak();
-      console.timeEnd('render');
+    document.querySelector('input').onchange = function() {
+      rebuild(+this.value);
     };
-    s.render();
+    rebuild(10000);
   })();
 </script>
 </body>
