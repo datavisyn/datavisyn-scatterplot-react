@@ -15,7 +15,8 @@ export function findAll<T>(tree:Quadtree<T>, x:number, y:number, radius = Infini
     const dy = y1 - y;
     return (dx * dx + dy * dy) <= radius2;
   }
-  function testAdder(d: T) {
+
+  function testAdder(d:T) {
     const x1 = tree.x()(d);
     const y1 = tree.y()(d);
     if (inDistance(x1, y1)) {
@@ -49,17 +50,19 @@ export function findAll<T>(tree:Quadtree<T>, x:number, y:number, radius = Infini
 }
 
 export function forEachLeaf<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, callback:(d:T)=>void) {
-  if (!node) {
-    return;
+  if (!node || !isLeafNode(node)) {
+    return 0;
   }
-  if (isLeafNode(node)) {
-    var leaf = <QuadtreeLeaf<T>>node;
-    //see https://github.com/d3/d3-quadtree
-    do {
-      let d = leaf.data;
-      callback(d);
-    } while ((leaf = leaf.next) != null);
-  }
+
+  var i = 0;
+  var leaf = <QuadtreeLeaf<T>>node;
+  //see https://github.com/d3/d3-quadtree
+  do {
+    let d = leaf.data;
+    i++;
+    callback(d);
+  } while ((leaf = leaf.next) != null);
+  return i;
 }
 
 export function forEach<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, callback:(d:T)=>void) {
@@ -71,10 +74,7 @@ export function forEach<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, callb
   } else {
     //manually visit the children
     const inner = <QuadtreeInternalNode<T>>node;
-    forEach(inner[0], callback);
-    forEach(inner[1], callback);
-    forEach(inner[2], callback);
-    forEach(inner[3], callback);
+    inner.forEach((i) => forEach(i, callback));
   }
 }
 
@@ -93,6 +93,21 @@ export function getTreeData<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>):T
   const r = [];
   forEach(node, r.push.bind(r));
   return r;
+}
+export function getTreeSize(node:QuadtreeInternalNode<any> | QuadtreeLeaf<any>) {
+  var count = 0;
+  forEach(node, () => count++);
+  return count;
+}
+
+export function getFirstLeaf<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>):T {
+  if (isLeafNode(node)) {
+    return (<QuadtreeLeaf<T>>node).data;
+  } else {
+    //manually visit the children
+    const inner = <QuadtreeInternalNode<T>>node;
+    return inner.reduce((f, act) => f ? f : getFirstLeaf(act), null);
+  }
 }
 
 export function isLeafNode(node:QuadtreeInternalNode<any> | QuadtreeLeaf<any>) {

@@ -6,7 +6,7 @@ import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtre
 import {circleSymbol, ISymbol, ISymbolRenderer, ERenderMode} from './symbol';
 import * as _symbol from './symbol';
 import merge from './merge';
-import {findAll, forEach as forEachInNode, isLeafNode, hasOverlap, ABORT_TRAVERSAL, CONTINUE_TRAVERSAL} from './quadtree';
+import {findAll, forEachLeaf, isLeafNode, hasOverlap, getTreeSize, getFirstLeaf, ABORT_TRAVERSAL, CONTINUE_TRAVERSAL} from './quadtree';
 import Lasso from './lasso';
 
 export interface IScale extends AxisScale<number>, ZoomScale {
@@ -69,6 +69,10 @@ enum ERenderReason {
   SCALED,
   PERFORM_SCALE,
   PERFORM_TRANSLATE
+}
+
+interface IBoundsPredicate {
+  (x0: number, y0: number, x1: number, y1: number) : boolean;
 }
 
 /**
@@ -274,7 +278,16 @@ export default class Scatterplot<T> {
     ctx.rect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
     ctx.clip();
 
-    this.renderPoints(ctx, xscale, yscale, isNodeVisible, reason);
+    function useAggregation(x0: number, y0: number, x1: number, y1: number) {
+      x0 = n2pX(x0);
+      y0 = n2pY(y0);
+      x1 = n2pX(x1);
+      y1 = n2pY(y1);
+      const min_size = Math.max(Math.abs(x0-x1), Math.abs(y0-y1));
+      return min_size < 5; //TODO tune depend on visual impact
+    }
+
+    this.renderPoints(ctx, xscale, yscale, isNodeVisible, useAggregation, reason);
 
     ctx.restore();
 
@@ -361,7 +374,7 @@ export default class Scatterplot<T> {
     $parent.select('svg:last-of-type g').call(bottom);
   }
 
-  private renderPoints(ctx:CanvasRenderingContext2D, xscale:IScale, yscale:IScale, isNodeVisible:(x0:number, y0:number, x1:number, y1:number)=>boolean, reason = ERenderReason.DIRTY) {
+  private renderPoints(ctx:CanvasRenderingContext2D, xscale:IScale, yscale:IScale, isNodeVisible:IBoundsPredicate, useAggregation: IBoundsPredicate, reason = ERenderReason.DIRTY) {
     const {x, y} = this.options;
     var renderer:ISymbolRenderer<T> = null;
 
@@ -379,12 +392,22 @@ export default class Scatterplot<T> {
 
     }
 
+    var rendered = 0, aggregated = 0, hidden = 0;
     function visitTree(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0:number, y0:number, x1:number, y1:number) {
       if (!isNodeVisible(x0, y0, x1, y1)) {
+        hidden += getTreeSize(node);
+        return ABORT_TRAVERSAL;
+      }
+      if (useAggregation(x0, y0, x1, y1)) {
+        let d = getFirstLeaf(node);
+        //console.log('aggregate', getTreeSize(node));
+        rendered ++;
+        aggregated += getTreeSize(node)-1;
+        renderer.render(xscale(x(d)), yscale(y(d)), d);
         return ABORT_TRAVERSAL;
       }
       if (isLeafNode(node)) { //is a leaf
-        forEachInNode(node, (d) => renderer.render(xscale(x(d)), yscale(y(d)), d));
+        rendered += forEachLeaf(node, (d) => renderer.render(xscale(x(d)), yscale(y(d)), d));
       }
       return CONTINUE_TRAVERSAL;
     }
@@ -392,7 +415,9 @@ export default class Scatterplot<T> {
     ctx.save();
 
     renderer = this.symbol(ctx, ERenderMode.NORMAL);
+    rendered = 0;
     this.tree.visit(visitTree);
+    console.log('rendered', rendered, 'aggregated', aggregated, 'hidden', hidden, 'total', this.tree.size());
     renderer.done();
 
     //render selected - TODO maybe in own canvas for performance of selection changes
