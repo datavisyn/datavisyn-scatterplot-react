@@ -15,6 +15,13 @@ export function findAll<T>(tree:Quadtree<T>, x:number, y:number, radius = Infini
     const dy = y1 - y;
     return (dx * dx + dy * dy) <= radius2;
   }
+  function testAdder(d: T) {
+    const x1 = tree.x()(d);
+    const y1 = tree.y()(d);
+    if (inDistance(x1, y1)) {
+      adder(d);
+    }
+  }
 
   function findItems(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0:number, y0:number, x1:number, y1:number) {
     const xy00In = inDistance(x0, y0);
@@ -30,6 +37,7 @@ export function findAll<T>(tree:Quadtree<T>, x:number, y:number, radius = Infini
 
     if (overlapping(x0, y0, x1, y1)) {
       //continue search
+      forEachLeaf(node, testAdder);
       return CONTINUE_TRAVERSAL;
     }
     return ABORT_TRAVERSAL;
@@ -40,7 +48,7 @@ export function findAll<T>(tree:Quadtree<T>, x:number, y:number, radius = Infini
   return r;
 }
 
-export function forEach<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, callback:(d:T)=>void) {
+export function forEachLeaf<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, callback:(d:T)=>void) {
   if (!node) {
     return;
   }
@@ -51,6 +59,15 @@ export function forEach<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, callb
       let d = leaf.data;
       callback(d);
     } while ((leaf = leaf.next) != null);
+  }
+}
+
+export function forEach<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, callback:(d:T)=>void) {
+  if (!node) {
+    return;
+  }
+  if (isLeafNode(node)) {
+    forEachLeaf(node, callback);
   } else {
     //manually visit the children
     const inner = <QuadtreeInternalNode<T>>node;
