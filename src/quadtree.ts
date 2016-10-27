@@ -51,15 +51,15 @@ export function findAll<T>(tree:Quadtree<T>, x:number, y:number, radius = Infini
 
 
 export interface IBoundsPredicate {
-  (x0: number, y0: number, x1: number, y1: number) : boolean;
+  (x0:number, y0:number, x1:number, y1:number) : boolean;
 }
 
 export interface ITester {
-  test(x: number, y: number): boolean;
+  test(x:number, y:number): boolean;
   testArea: IBoundsPredicate;
 }
 
-export function findByTester<T>(tree:Quadtree<T>, tester: ITester): T[] {
+export function findByTester<T>(tree:Quadtree<T>, tester:ITester):T[] {
   var r = [];
   const adder = r.push.bind(r);
 
@@ -93,7 +93,7 @@ export function findByTester<T>(tree:Quadtree<T>, tester: ITester): T[] {
 
   tree.visit(findItems);
 
-  return r
+  return r;
 }
 
 export function forEachLeaf<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, callback:(d:T)=>void) {
@@ -125,7 +125,7 @@ export function forEach<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, callb
   }
 }
 
-export function hasOverlap(ox0:number, oy0:number, ox1:number, oy1:number): IBoundsPredicate {
+export function hasOverlap(ox0:number, oy0:number, ox1:number, oy1:number):IBoundsPredicate {
   return (x0:number, y0:number, x1:number, y1:number) => {
     //if the 1er points are small than 0er or 0er bigger than 1er than outside
     if (x1 < ox0 || y1 < oy0 || x0 > ox1 || y0 > oy1) {
@@ -133,7 +133,7 @@ export function hasOverlap(ox0:number, oy0:number, ox1:number, oy1:number): IBou
     }
     //inside or partial overlap
     return true;
-  }
+  };
 }
 
 export function getTreeData<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>):T[] {
@@ -158,5 +158,5 @@ export function getFirstLeaf<T>(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>):
 }
 
 export function isLeafNode(node:QuadtreeInternalNode<any> | QuadtreeLeaf<any>) {
-  return !(<any>node).length
+  return !(<any>node).length;
 }

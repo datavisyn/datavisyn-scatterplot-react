@@ -60,10 +60,10 @@ export interface IScatterplotOptions<T> {
   tooltipDelay?: number;
   tooltip?(d:T): string;
 
-  onSelectionChanged?(scatterplot: Scatterplot<T>);
+  onSelectionChanged?(scatterplot:Scatterplot<T>);
 
 
-  isSelectEvent?(event: MouseEvent) : boolean; //=> event.ctrlKey || event.altKey
+  isSelectEvent?(event:MouseEvent) : boolean; //=> event.ctrlKey || event.altKey
 }
 
 const NORMALIZED_RANGE = [0, 100];
@@ -117,7 +117,7 @@ export default class Scatterplot<T> {
 
     onSelectionChanged: ()=>undefined,
 
-    isSelectEvent: (event: MouseEvent) => event.ctrlKey || event.altKey
+    isSelectEvent: (event:MouseEvent) => event.ctrlKey || event.altKey
   };
 
   private tree:Quadtree<T>;
@@ -256,7 +256,7 @@ export default class Scatterplot<T> {
   }
 
   render(reason = ERenderReason.DIRTY) {
-    if(this.checkResize()) {
+    if (this.checkResize()) {
       //check resize
       return this.resized();
     }
@@ -292,12 +292,12 @@ export default class Scatterplot<T> {
     ctx.rect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
     ctx.clip();
 
-    function useAggregation(x0: number, y0: number, x1: number, y1: number) {
+    function useAggregation(x0:number, y0:number, x1:number, y1:number) {
       x0 = n2pX(x0);
       y0 = n2pY(y0);
       x1 = n2pX(x1);
       y1 = n2pY(y1);
-      const min_size = Math.max(Math.abs(x0-x1), Math.abs(y0-y1));
+      const min_size = Math.max(Math.abs(x0 - x1), Math.abs(y0 - y1));
       return min_size < 5; //TODO tune depend on visual impact
     }
 
@@ -335,7 +335,7 @@ export default class Scatterplot<T> {
     }
   }
 
-  private selectWithTester(tester: ITester) {
+  private selectWithTester(tester:ITester) {
     const selection = findByTester(this.tree, tester);
     this.selection = selection;
   }
@@ -398,7 +398,6 @@ export default class Scatterplot<T> {
   }
 
   private onMouseMove(event:MouseEvent) {
-    const that = this;
     //clear old
     clearTimeout(this.showTooltipHandle);
     const pos = mouse(this.canvas);
@@ -419,25 +418,26 @@ export default class Scatterplot<T> {
     $parent.select('svg:last-of-type g').call(bottom);
   }
 
-  private renderPoints(ctx:CanvasRenderingContext2D, xscale:IScale, yscale:IScale, isNodeVisible:IBoundsPredicate, useAggregation: IBoundsPredicate, reason = ERenderReason.DIRTY) {
+  private renderPoints(ctx:CanvasRenderingContext2D, xscale:IScale, yscale:IScale, isNodeVisible:IBoundsPredicate, useAggregation:IBoundsPredicate, reason = ERenderReason.DIRTY) {
     const {x, y} = this.options;
     var renderer:ISymbolRenderer<T> = null;
 
-    function debugNode(color:string, x0:number, y0:number, x1:number, y1:number) {
-      ctx.closePath();
-      ctx.fillStyle = 'steelblue';
-      ctx.fill();
-      ctx.fillStyle = color;
-      x0 = xscale(x0);
-      y0 = yscale(y0);
-      x1 = xscale(x1);
-      y1 = yscale(y1);
-      ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x0 - x1), Math.abs(y0 - y1));
-      ctx.beginPath();
-
-    }
+    //function debugNode(color:string, x0:number, y0:number, x1:number, y1:number) {
+    //  ctx.closePath();
+    //  ctx.fillStyle = 'steelblue';
+    //  ctx.fill();
+    //  ctx.fillStyle = color;
+    //  x0 = xscale(x0);
+    //  y0 = yscale(y0);
+    //  x1 = xscale(x1);
+    //  y1 = yscale(y1);
+    //  ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x0 - x1), Math.abs(y0 - y1));
+    //  ctx.beginPath();
+    //
+    //}
 
     var rendered = 0, aggregated = 0, hidden = 0;
+
     function visitTree(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0:number, y0:number, x1:number, y1:number) {
       if (!isNodeVisible(x0, y0, x1, y1)) {
         hidden += getTreeSize(node);
@@ -446,8 +446,8 @@ export default class Scatterplot<T> {
       if (useAggregation(x0, y0, x1, y1)) {
         let d = getFirstLeaf(node);
         //console.log('aggregate', getTreeSize(node));
-        rendered ++;
-        aggregated += getTreeSize(node)-1;
+        rendered++;
+        aggregated += getTreeSize(node) - 1;
         renderer.render(xscale(x(d)), yscale(y(d)), d);
         return ABORT_TRAVERSAL;
       }

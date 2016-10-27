@@ -1,4 +1,4 @@
-import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye, line as d3line} from 'd3-shape';
+import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye} from 'd3-shape';
 
 export interface ISymbolRenderer<T> {
   render(x:number, y:number, d:T);
@@ -14,6 +14,14 @@ export enum ERenderMode {
 export interface ISymbol<T> {
   (ctx:CanvasRenderingContext2D, mode: ERenderMode): ISymbolRenderer<T>;
 }
+
+export const d3SymbolCircle = symbolCircle;
+export const d3SymbolCross = symbolCross;
+export const d3SymbolDiamond = symbolDiamond;
+export const d3SymbolSquare = symbolSquare;
+export const d3SymbolStar = symbolStar;
+export const d3SymbolTriangle = symbolTriangle;
+export const d3SymbolWye = symbolWye;
 
 /**
  * generic wrapper around d3 symbols for rendering
@@ -40,7 +48,7 @@ export function d3Symbol(symbol = d3SymbolCircle, fillStyle:string = 'steelblue'
         ctx.fill();
       }
     };
-  }
+  };
 }
 
 /**
@@ -75,14 +83,6 @@ export function circleSymbol(fillStyle:string = 'steelblue', size = 20):ISymbol<
         ctx.fill();
       }
     };
-  }
+  };
 }
-
-export const d3SymbolCircle = symbolCircle;
-export const d3SymbolCross = symbolCross;
-export const d3SymbolDiamond = symbolDiamond;
-export const d3SymbolSquare = symbolSquare;
-export const d3SymbolStar = symbolStar;
-export const d3SymbolTriangle = symbolTriangle;
-export const d3SymbolWye = symbolWye;
 

@@ -26,17 +26,17 @@ export default class Lasso {
     this.points = [];
   }
 
-  tester(p2nX:(p: number)=>number, p2nY:(p: number)=>number){
+  tester(p2nX:(p:number)=>number, p2nY:(p:number)=>number) {
     if (this.points.length < 3) {
       return null;
     }
-    const polygon = polygonHull(this.points.map(([x,y]) => <[number, number]>[p2nX(x),p2nY(y)]));
+    const polygon = polygonHull(this.points.map(([x,y]) => <[number, number]>[p2nX(x), p2nY(y)]));
     const [x0, x1] = extent(polygon, (d) => d[0]);
     const [y0, y1] = extent(polygon, (d) => d[1]);
     return {
-      test: (x: number, y: number) => polygonContains(polygon, [x,y]),
+      test: (x:number, y:number) => polygonContains(polygon, [x, y]),
       testArea: hasOverlap(x0, y0, x1, y1)
-    }
+    };
   }
 
   render(ctx:CanvasRenderingContext2D) {
