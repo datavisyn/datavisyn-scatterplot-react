@@ -1,7 +1,7 @@
 import {Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
 
-const ABORT_TRAVERSAL = true;
-const CONTINUE_TRAVERSAL = false;
+export const ABORT_TRAVERSAL = true;
+export const CONTINUE_TRAVERSAL = false;
 
 export function findAll<T>(tree:Quadtree<T>, x:number, y:number, radius = Infinity) {
   var r = [];

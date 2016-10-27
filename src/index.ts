@@ -6,7 +6,7 @@ import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtre
 import {circleSymbol, ISymbol, ISymbolRenderer, ERenderMode} from './symbol';
 import * as _symbol from './symbol';
 import merge from './merge';
-import {findAll, forEach as forEachInNode, isLeafNode, hasOverlap} from './quadtree';
+import {findAll, forEach as forEachInNode, isLeafNode, hasOverlap, ABORT_TRAVERSAL, CONTINUE_TRAVERSAL} from './quadtree';
 import Lasso from './lasso';
 
 export interface IScale extends AxisScale<number>, ZoomScale {
@@ -254,7 +254,7 @@ export default class Scatterplot<T> {
   }
 
   private get clickRadius() {
-    // FIXME 
+    // FIXME
     //compute the data domain radius based on xscale and the scaling factor
     const view = this.options.clickRadius;
     const transform = zoomTransform(this.canvas);
@@ -335,14 +335,13 @@ export default class Scatterplot<T> {
     );
 
     function visitTree(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0:number, y0:number, x1:number, y1:number) {
+      if (!isVisible(x0, y0, x1, y1)) {
+        return ABORT_TRAVERSAL;
+      }
       if (isLeafNode(node)) { //is a leaf
         forEachInNode(node, (d) => renderer.render(xscale(x(d)), yscale(y(d)), d));
-        return true; //don't visit
-      } else {
-        //console.log(x0,y0,x1,y1, '=',xscale(x0), yscale(y0), xscale(x1), yscale(y1));
-        //negate, since true means not visit
-        return !isVisible(x0, y0, x1, y1);
       }
+      return CONTINUE_TRAVERSAL;
     }
 
     ctx.save();
