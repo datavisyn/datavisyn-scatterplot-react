@@ -1,12 +1,13 @@
 import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
 import {select, mouse, event as d3event} from 'd3-selection';
-import {zoom, zoomTransform, ZoomScale} from 'd3-zoom';
+import {zoom as d3zoom, zoomTransform, ZoomScale} from 'd3-zoom';
+import {drag as d3drag} from 'd3-drag';
 import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
 import {circleSymbol, ISymbol, ISymbolRenderer, ERenderMode} from './symbol';
 import * as _symbol from './symbol';
 import merge from './merge';
-import {findAll, forEachLeaf, isLeafNode, hasOverlap, getTreeSize, getFirstLeaf, ABORT_TRAVERSAL, CONTINUE_TRAVERSAL} from './quadtree';
+import {findAll, forEachLeaf, isLeafNode, hasOverlap, getTreeSize, findByTester, getFirstLeaf, ABORT_TRAVERSAL, CONTINUE_TRAVERSAL, IBoundsPredicate, ITester} from './quadtree';
 import Lasso from './lasso';
 
 export interface IScale extends AxisScale<number>, ZoomScale {
@@ -58,6 +59,11 @@ export interface IScatterplotOptions<T> {
 
   tooltipDelay?: number;
   tooltip?(d:T): string;
+
+  onSelectionChanged?(scatterplot: Scatterplot<T>);
+
+
+  isSelectEvent?(event: MouseEvent) : boolean; //=> event.ctrlKey || event.altKey
 }
 
 const NORMALIZED_RANGE = [0, 100];
@@ -71,9 +77,6 @@ enum ERenderReason {
   PERFORM_TRANSLATE
 }
 
-interface IBoundsPredicate {
-  (x0: number, y0: number, x1: number, y1: number) : boolean;
-}
 
 /**
  * a class for rendering a scatterplot in a canvas
@@ -110,10 +113,12 @@ export default class Scatterplot<T> {
     x: (d) => (<any>d).x,
     y: (d) => (<any>d).y,
     tooltipDelay: 300,
-    tooltip: (d) => JSON.stringify(d)
-  };
+    tooltip: (d) => JSON.stringify(d),
 
-  private zoom = zoom().on('zoom', this.onZoom.bind(this)).on('end', this.onZoomEnd.bind(this));
+    onSelectionChanged: ()=>undefined,
+
+    isSelectEvent: (event: MouseEvent) => event.ctrlKey || event.altKey
+  };
 
   private tree:Quadtree<T>;
   private _selection:Quadtree<T>;
@@ -140,10 +145,21 @@ export default class Scatterplot<T> {
     this.canvas = <HTMLCanvasElement>parent.children[0];
 
     //register zoom
-    this.zoom
-      .scaleExtent(this.options.scaleExtent);
+    const zoom = d3zoom()
+      .on('zoom', this.onZoom.bind(this))
+      .on('end', this.onZoomEnd.bind(this))
+      .scaleExtent(this.options.scaleExtent)
+      .filter(() => d3event.button === 0 && !this.options.isSelectEvent(<MouseEvent>d3event));
+
+    const drag = d3drag()
+      .on('start', this.onDragStart.bind(this))
+      .on('drag', this.onDrag.bind(this))
+      .on('end', this.onDragEnd.bind(this))
+      .filter(() => d3event.button === 0 && this.options.isSelectEvent(<MouseEvent>d3event));
+
     select(this.canvas)
-      .call(this.zoom)
+      .call(zoom)
+      .call(drag)
       .on('click', () => this.onClick(d3event))
       .on('mouseleave', () => this.onMouseLeave(d3event))
       .on('mousemove', () => this.onMouseMove(d3event));
@@ -156,7 +172,7 @@ export default class Scatterplot<T> {
     this._selection = quadtree([], this.tree.x(), this.tree.y());
   }
 
-  checkResize() {
+  private checkResize() {
     const c = this.canvas;
     if (c.width !== c.clientWidth || c.height !== c.clientHeight) {
       c.width = c.clientWidth;
@@ -172,22 +188,14 @@ export default class Scatterplot<T> {
     return this.canvas.getContext('2d');
   }
 
-  onSelectionChanged(self:Scatterplot<T>) {
-    // hook dummy
-  }
-
   get selection() {
     return this._selection.data();
   }
 
   set selection(selection:T[]) {
+    //this.lasso.clear();
     if (selection.length === 0) {
-      if (this._selection.size() === 0) {
-        return;
-      }
-      this._selection = quadtree([], this.tree.x(), this.tree.y());
-      this.onSelectionChanged(this);
-      this.render(ERenderReason.SELECTION_CHANGED);
+      this.clearSelection();
       return;
     }
     //find the delta
@@ -207,9 +215,15 @@ export default class Scatterplot<T> {
     this._selection.removeAll(s);
 
     if (changed) {
-      this.onSelectionChanged(this);
+      this.options.onSelectionChanged(this);
       this.render(ERenderReason.SELECTION_CHANGED);
     }
+  }
+
+  clearSelection() {
+    this._selection = quadtree([], this.tree.x(), this.tree.y());
+    this.options.onSelectionChanged(this);
+    this.render(ERenderReason.SELECTION_CHANGED);
   }
 
   addToSelection(items:T[]) {
@@ -217,7 +231,7 @@ export default class Scatterplot<T> {
       return;
     }
     this._selection.addAll(items);
-    this.onSelectionChanged(this);
+    this.options.onSelectionChanged(this);
     this.render(ERenderReason.SELECTION_CHANGED);
   }
 
@@ -226,7 +240,7 @@ export default class Scatterplot<T> {
       return;
     }
     this._selection.removeAll(items);
-    this.onSelectionChanged(this);
+    this.options.onSelectionChanged(this);
     this.render(ERenderReason.SELECTION_CHANGED);
   }
 
@@ -304,11 +318,42 @@ export default class Scatterplot<T> {
     this.render(ERenderReason.SCALED);
   }
 
+  private onDragStart() {
+    this.lasso.start(d3event.x, d3event.y);
+    this.clearSelection();
+  }
+
+  private onDrag() {
+    this.lasso.drag(d3event.x, d3event.y);
+
+    const {n2pX, n2pY} = this.transformedNormalized2PixelScales();
+    const tester = this.lasso.tester(n2pX.invert.bind(n2pX), n2pY.invert.bind(n2pY));
+    if (tester) {
+      this.selectWithTester(tester);
+    } else {
+      this.render(ERenderReason.SELECTION_CHANGED);
+    }
+  }
+
+  private selectWithTester(tester: ITester) {
+    const selection = findByTester(this.tree, tester);
+    this.selection = selection;
+  }
+
+  private onDragEnd() {
+    this.lasso.end(d3event.x, d3event.y);
+    this.render(ERenderReason.SELECTION_CHANGED);
+  }
+
   private onClick(event:MouseEvent) {
+    if (event.button > 0) {
+      //right button or something like that = reset
+      this.selection = [];
+      return;
+    }
     const {x, y, clickRadius} = this.getMouseNormalizedPos();
 
     //find closest data item
-    //TODO implement a find all to select more than one item
     const closest = findAll(this.tree, x, y, clickRadius);
     this.selection = closest;
   }
