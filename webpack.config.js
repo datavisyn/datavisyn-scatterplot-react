@@ -20,11 +20,18 @@ module.exports = {
     }]
   },
   resolve: {
-    extensions: ['', '.webpack.js', '.web.js', '.js', '.ts', '.tsx']
+    extensions: ['.webpack.js', '.web.js', '.js', '.ts', '.tsx'],
+    modules: [
+      path.resolve(__dirname, '/src'),
+      'node_modules'
+    ]
   },
   externals: {
     react: 'React',
     'react-dom': 'ReactDOM'
+  },
+  devServer: {
+    contentBase: path.resolve(__dirname, 'build')
   },
   devtool: 'source-map'
 };
