@@ -62,6 +62,15 @@ export interface IScatterplotOptions<T> {
 
 const NORMALIZED_RANGE = [0, 100];
 
+enum ERenderReason {
+  DIRTY,
+  SELECTION_CHANGED,
+  TRANSLATED,
+  SCALED,
+  PERFORM_SCALE,
+  PERFORM_TRANSLATE
+}
+
 /**
  * a class for rendering a scatterplot in a canvas
  */
@@ -174,7 +183,7 @@ export default class Scatterplot<T> {
       }
       this._selection = quadtree([], this.tree.x(), this.tree.y());
       this.onSelectionChanged(this);
-      this.render();
+      this.render(ERenderReason.SELECTION_CHANGED);
       return;
     }
     //find the delta
@@ -195,7 +204,7 @@ export default class Scatterplot<T> {
 
     if (changed) {
       this.onSelectionChanged(this);
-      this.render();
+      this.render(ERenderReason.SELECTION_CHANGED);
     }
   }
 
@@ -205,7 +214,7 @@ export default class Scatterplot<T> {
     }
     this._selection.addAll(items);
     this.onSelectionChanged(this);
-    this.render();
+    this.render(ERenderReason.SELECTION_CHANGED);
   }
 
   removeFromSelection(items:T[]) {
@@ -214,7 +223,7 @@ export default class Scatterplot<T> {
     }
     this._selection.removeAll(items);
     this.onSelectionChanged(this);
-    this.render();
+    this.render(ERenderReason.SELECTION_CHANGED);
   }
 
   private transformedScales() {
@@ -224,22 +233,39 @@ export default class Scatterplot<T> {
     return {xscale, yscale};
   }
 
-  render() {
+  resized() {
+    this.render(ERenderReason.DIRTY);
+  }
+
+  render(reason = ERenderReason.DIRTY) {
+    if(this.checkResize()) {
+      //check resize
+      return this.resized();
+    }
+
     const c = this.canvas,
       ctx = this.ctx,
       margin = this.options.margin,
       bounds = {x0: margin.left, y0: margin.top, x1: c.clientWidth - margin.right, y1: c.clientHeight - margin.bottom};
-    this.checkResize();
 
-    this.xscale.range([bounds.x0, bounds.x1]);
-    this.yscale.range([bounds.y1, bounds.y0]);
-    this.normalized2pixel.x.range(this.xscale.range());
-    this.normalized2pixel.y.range(this.yscale.range());
-
+    if (reason === ERenderReason.DIRTY) {
+      this.xscale.range([bounds.x0, bounds.x1]);
+      this.yscale.range([bounds.y1, bounds.y0]);
+      this.normalized2pixel.x.range(this.xscale.range());
+      this.normalized2pixel.y.range(this.yscale.range());
+    }
     //transform scale
     const { xscale, yscale} = this.transformedScales();
 
-    this.renderAxes(xscale, yscale);
+    if (reason !== ERenderReason.SELECTION_CHANGED) {
+      this.renderAxes(xscale, yscale);
+    }
+
+    const { n2pX, n2pY} = this.transformedNormalized2PixelScales();
+    const nx = (v) => n2pX.invert(v),
+      ny = (v) => n2pY.invert(v);
+    //inverted y scale
+    const isNodeVisible = hasOverlap(nx(bounds.x0), ny(bounds.y1), nx(bounds.x1), ny(bounds.y0));
 
     ctx.clearRect(0, 0, c.width, c.height);
 
@@ -248,14 +274,7 @@ export default class Scatterplot<T> {
     ctx.rect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
     ctx.clip();
 
-
-    const { n2pX, n2pY} = this.transformedNormalized2PixelScales();
-    const nx = (v) => n2pX.invert(v),
-      ny = (v) => n2pY.invert(v);
-    //inverted y scale
-    const isNodeVisible = hasOverlap(nx(bounds.x0), ny(bounds.y1), nx(bounds.x1), ny(bounds.y0));
-
-    this.renderPoints(ctx, xscale, yscale, isNodeVisible);
+    this.renderPoints(ctx, xscale, yscale, isNodeVisible, reason);
 
     ctx.restore();
 
@@ -265,11 +284,11 @@ export default class Scatterplot<T> {
   private onZoom() {
     // TODO more intelligent depending on zoom kind
     // intermediate zoom just move the context
-    this.render();
+    this.render(ERenderReason.SCALED);
   }
 
   private onZoomEnd() {
-    this.render();
+    this.render(ERenderReason.SCALED);
   }
 
   private onClick(event:MouseEvent) {
@@ -342,7 +361,7 @@ export default class Scatterplot<T> {
     $parent.select('svg:last-of-type g').call(bottom);
   }
 
-  private renderPoints(ctx:CanvasRenderingContext2D, xscale:IScale, yscale:IScale, isNodeVisible:(x0:number, y0:number, x1:number, y1:number)=>boolean) {
+  private renderPoints(ctx:CanvasRenderingContext2D, xscale:IScale, yscale:IScale, isNodeVisible:(x0:number, y0:number, x1:number, y1:number)=>boolean, reason = ERenderReason.DIRTY) {
     const {x, y} = this.options;
     var renderer:ISymbolRenderer<T> = null;
 
