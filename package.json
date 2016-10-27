@@ -32,7 +32,7 @@
     "compile": "tsc",
     "lint": "tslint -c tslint.json src/**.ts test/**.ts",
     "docs": "typedoc --options typedoc.json src/**.ts",
-    "build": "webpack",
+    "build": "webpack --env prod",
     "release:major": "npm version major && npm publish && git push --follow-tags",
     "release:minor": "npm version minor && npm publish && git push --follow-tags",
     "release:patch": "npm version patch && npm publish && git push --follow-tags",
