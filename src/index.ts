@@ -8,7 +8,7 @@ import './style.scss';
 import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
 import {select, mouse, event as d3event} from 'd3-selection';
-import {zoom as d3zoom, zoomTransform, ZoomScale} from 'd3-zoom';
+import {zoom as d3zoom, zoomTransform, ZoomScale, ZoomTransform, D3ZoomEvent, zoomIdentity} from 'd3-zoom';
 import {drag as d3drag} from 'd3-drag';
 import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
 import {circleSymbol, ISymbol, ISymbolRenderer, ERenderMode} from './symbol';
@@ -101,6 +101,11 @@ export interface IScatterplotOptions<T> {
   tooltipDelay?: number;
 
   /**
+   * delay before a full redraw is shown during zooming
+   */
+  zoomDelay?: number;
+
+  /**
    * shows the tooltip
    * @param parent the scatterplot html element
    * @param items items to show, empty to hide tooltip
@@ -131,8 +136,7 @@ const NORMALIZED_RANGE = [0, 100];
 enum ERenderReason {
   DIRTY,
   SELECTION_CHANGED,
-  TRANSLATED,
-  SCALED,
+  ZOOMED,
   PERFORM_SCALE, //performing a scale operation
   PERFORM_TRANSLATE
 }
@@ -186,6 +190,10 @@ export default class Scatterplot<T> {
 
   private lasso = new Lasso();
 
+  private currentTransform: ZoomTransform = zoomIdentity;
+  private zoomStartTransform: ZoomTransform;
+  private zommHandle = -1;
+
   constructor(data:T[], private parent:HTMLElement, props?:IScatterplotOptions<T>) {
     this.props = merge(this.props, props);
 
@@ -205,13 +213,14 @@ export default class Scatterplot<T> {
     this.canvasDataLayer = <HTMLCanvasElement>parent.children[0];
     this.canvasSelectionLayer = <HTMLCanvasElement>parent.children[1];
 
+
     //register zoom
     const zoom = d3zoom()
+      .on('start', this.onZoomStart.bind(this))
       .on('zoom', this.onZoom.bind(this))
       .on('end', this.onZoomEnd.bind(this))
       .scaleExtent(this.props.scaleExtent)
       .filter(() => d3event.button === 0 && !this.props.isSelectEvent(<MouseEvent>d3event));
-
     const drag = d3drag()
       .on('start', this.onDragStart.bind(this))
       .on('drag', this.onDrag.bind(this))
@@ -332,16 +341,14 @@ export default class Scatterplot<T> {
     this.render(ERenderReason.DIRTY);
   }
 
-
   private transformedScales() {
-    const transform = zoomTransform(this.parent);
-    const xscale = transform.rescaleX(this.props.xscale);
-    const yscale = transform.rescaleY(this.props.yscale);
+    const xscale = this.currentTransform.rescaleX(this.props.xscale);
+    const yscale = this.currentTransform.rescaleY(this.props.yscale);
     return {xscale, yscale};
   }
 
   private getMouseNormalizedPos(pixelpos = mouse(this.parent)) {
-    const { n2pX, n2pY, transform} = this.transformedNormalized2PixelScales();
+    const { n2pX, n2pY} = this.transformedNormalized2PixelScales();
 
     function rangeRange(s:IScale) {
       const range = s.range();
@@ -351,6 +358,7 @@ export default class Scatterplot<T> {
     const computeClickRadius = () => {
       //compute the data domain radius based on xscale and the scaling factor
       const view = this.props.clickRadius;
+      const transform = this.currentTransform;
       const viewSize = transform.k * Math.min(rangeRange(this.normalized2pixel.x), rangeRange(this.normalized2pixel.y));
       const normalizedSize = NORMALIZED_RANGE[1];
       //tranform from view to data without translation
@@ -365,20 +373,38 @@ export default class Scatterplot<T> {
   }
 
   private transformedNormalized2PixelScales() {
-    const transform = zoomTransform(this.parent);
-    const n2pX = transform.rescaleX(this.normalized2pixel.x);
-    const n2pY = transform.rescaleY(this.normalized2pixel.y);
-    return {transform, n2pX, n2pY};
+    const n2pX = this.currentTransform.rescaleX(this.normalized2pixel.x);
+    const n2pY = this.currentTransform.rescaleY(this.normalized2pixel.y);
+    return {n2pX, n2pY};
   };
 
-  private onZoom() {
-    // TODO more intelligent depending on zoom kind
-    // intermediate zoom just move the context
-    this.render(ERenderReason.PERFORM_SCALE);
+  private onZoomStart() {
+    this.zoomStartTransform = this.currentTransform;
   }
 
   private onZoomEnd() {
-    this.render(ERenderReason.SCALED);
+    const start = this.zoomStartTransform;
+    const end = this.currentTransform;
+    if (start.x !== end.x || start.y !== end.y || start.k !== end.k) {
+      this.render(ERenderReason.ZOOMED);
+    }
+  }
+
+  private onZoom() {
+    const evt = <D3ZoomEvent<any,any>>d3event;
+    const new_ :ZoomTransform = evt.transform;
+    const old = this.currentTransform;
+    this.currentTransform = new_;
+    const tchanged = (old.x !== new_.x || old.y !== new_.y);
+    const schanged = (old.k !== new_.k);
+    if(tchanged && schanged) {
+      this.render(ERenderReason.PERFORM_TRANSLATE); //use translate
+    } else if (tchanged) {
+      this.render(ERenderReason.PERFORM_TRANSLATE);
+    } else if (schanged) {
+      this.render(ERenderReason.PERFORM_SCALE);
+    }
+    //nothing if no changed
   }
 
   private onDragStart() {
@@ -444,7 +470,6 @@ export default class Scatterplot<T> {
       //check resize
       return this.resized();
     }
-    console.log(reason);
 
     const c= this.canvasDataLayer,
       margin = this.props.margin,
@@ -456,6 +481,7 @@ export default class Scatterplot<T> {
       this.normalized2pixel.x.range(this.props.xscale.range());
       this.normalized2pixel.y.range(this.props.yscale.range());
     }
+
     //transform scale
     const { xscale, yscale} = this.transformedScales();
 
@@ -489,18 +515,29 @@ export default class Scatterplot<T> {
       return ctx;
     };
 
-
-    if (reason !== ERenderReason.SELECTION_CHANGED) {
-      renderCtx(false);
-      this.renderAxes(xscale, yscale);
-    } else {
-      console.log('skip data');
-    }
-    {
+    const renderSelection = () => {
       let ctx = renderCtx(true);
       this.lasso.render(ctx);
-    }
+    };
+    const renderAxes = this.renderAxes.bind(this, xscale, yscale);
+    const renderData = renderCtx.bind(this, false);
 
+    console.log(ERenderReason[reason]);
+    //render logic
+    switch (reason) {
+      case ERenderReason.PERFORM_SCALE:
+        break;
+      case ERenderReason.PERFORM_TRANSLATE:
+
+        break;
+      case ERenderReason.SELECTION_CHANGED:
+        renderSelection();
+        break;
+      default:
+        renderData();
+        renderAxes();
+        renderSelection();
+    }
   }
 
   private renderAxes(xscale:IScale, yscale:IScale) {
