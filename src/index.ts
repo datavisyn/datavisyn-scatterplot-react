@@ -8,7 +8,7 @@ import './style.scss';
 import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
 import {select, mouse, event as d3event} from 'd3-selection';
-import {zoom as d3zoom, zoomTransform, ZoomScale, ZoomTransform, D3ZoomEvent, zoomIdentity} from 'd3-zoom';
+import {zoom as d3zoom, ZoomScale, ZoomTransform, D3ZoomEvent, zoomIdentity} from 'd3-zoom';
 import {drag as d3drag} from 'd3-drag';
 import {quadtree, Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
 import {circleSymbol, ISymbol, ISymbolRenderer, ERenderMode} from './symbol';
@@ -595,8 +595,8 @@ export default class Scatterplot<T> {
       case ERenderReason.AFTER_SCALE:
         //nothing current approach is to draw all
         break;
-      case ERenderReason.PERFORM_SCALE:
-      case ERenderReason.PERFORM_SCALE_AND_TRANSLATE:
+      //case ERenderReason.PERFORM_SCALE:
+      //case ERenderReason.PERFORM_SCALE_AND_TRANSLATE:
       default:
         clearAutoZoomRedraw();
         renderData();
