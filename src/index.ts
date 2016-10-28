@@ -137,8 +137,8 @@ enum ERenderReason {
   DIRTY,
   SELECTION_CHANGED,
   ZOOMED,
-  PERFORM_SCALE, //performing a scale operation
-  PERFORM_TRANSLATE
+  PERFORM_TRANSLATE,
+  PERFORM_SCALE
 }
 
 
@@ -399,11 +399,11 @@ export default class Scatterplot<T> {
     const schanged = (old.k !== new_.k);
     const delta = { x: new_.x - old.x, y: new_.y - old.y, k : new_.k / old.k};
     if(tchanged && schanged) {
-      this.render(ERenderReason.PERFORM_TRANSLATE, delta); //use translate
+      this.render(ERenderReason.PERFORM_SCALE, delta); //use scale for now
+    } else if(schanged) {
+      this.render(ERenderReason.PERFORM_SCALE, delta);
     } else if (tchanged) {
       this.render(ERenderReason.PERFORM_TRANSLATE, delta);
-    } else if (schanged) {
-      this.render(ERenderReason.PERFORM_SCALE, delta);
     }
     //nothing if no changed
   }
@@ -474,7 +474,9 @@ export default class Scatterplot<T> {
 
     const c= this.canvasDataLayer,
       margin = this.props.margin,
-      bounds = {x0: margin.left, y0: margin.top, x1: c.clientWidth - margin.right, y1: c.clientHeight - margin.bottom};
+      bounds = {x0: margin.left, y0: margin.top, x1: c.clientWidth - margin.right, y1: c.clientHeight - margin.bottom},
+      bounds_width = bounds.x1 - bounds.x0,
+      bounds_height = bounds.y1 - bounds.y0;
 
     if (reason === ERenderReason.DIRTY) {
       this.props.xscale.range([bounds.x0, bounds.x1]);
@@ -506,7 +508,7 @@ export default class Scatterplot<T> {
       const ctx = (isSelection ? this.canvasSelectionLayer : this.canvasDataLayer).getContext('2d');
       ctx.clearRect(0, 0, c.width, c.height);
       ctx.save();
-      ctx.rect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
+      ctx.rect(bounds.x0, bounds.y0, bounds_width, bounds_height);
       ctx.clip();
       const tree = isSelection ? this.selectionTree : this.tree;
       const renderer = this.props.symbol(ctx, isSelection ? ERenderMode.SELECTED : ERenderMode.NORMAL);
@@ -526,11 +528,18 @@ export default class Scatterplot<T> {
       const ctx = this.canvasSelectionLayer.getContext('2d');
       ctx.clearRect(0, 0, c.width, c.height);
       ctx.save();
-      ctx.rect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
+      ctx.rect(bounds.x0, bounds.y0, bounds_width, bounds_height);
       ctx.clip();
+
+      //ctx.translate(bounds.x0, bounds.y0+bounds_height); //move to visible area
+      //console.log(x,y,k, bounds.x0, bounds.y0, n2pX(0), n2pY(100), this.currentTransform.x, this.currentTransform.y);
+      //ctx.scale(k,k);
+      //ctx.translate(0, -bounds_height); //move to visible area
       ctx.translate(x,y);
-      ctx.scale(k,k);
-      ctx.drawImage(this.canvasDataLayer, 0, 0);
+      //copy just the visible area
+      //canvas, clip area, target area
+      //see http://www.w3schools.com/tags/canvas_drawimage.asp
+      ctx.drawImage(this.canvasDataLayer, bounds.x0, bounds.y0, bounds_width, bounds_height, bounds.x0, bounds.y0, bounds_width*k, bounds_height*k);
       ctx.restore();
 
       //swap and update class names
@@ -545,7 +554,6 @@ export default class Scatterplot<T> {
     console.log(ERenderReason[reason]);
     //render logic
     switch (reason) {
-      case ERenderReason.PERFORM_SCALE:
       case ERenderReason.PERFORM_TRANSLATE:
         transformData(transformDelta.x, transformDelta.y, transformDelta.k);
         renderSelection();
@@ -554,6 +562,8 @@ export default class Scatterplot<T> {
       case ERenderReason.SELECTION_CHANGED:
         renderSelection();
         break;
+      case ERenderReason.PERFORM_SCALE:
+      case ERenderReason.ZOOMED:
       default:
         renderData();
         renderAxes();
