@@ -96,7 +96,7 @@ export interface IScatterplotOptions<T> {
 
   /**
    * delay before a tooltip will be shown after a mouse was moved
-   * default: 300
+   * default: 500
    */
   tooltipDelay?: number;
 
@@ -160,7 +160,7 @@ export default class Scatterplot<T> {
 
     symbol: <ISymbol<T>>circleSymbol(),
 
-    tooltipDelay: 300,
+    tooltipDelay: 500,
     showTooltip: showTooltip,
 
     onSelectionChanged: ()=>undefined,
@@ -173,7 +173,8 @@ export default class Scatterplot<T> {
     x: d3scale.scaleLinear().domain(NORMALIZED_RANGE),
     y: d3scale.scaleLinear().domain(NORMALIZED_RANGE)
   };
-  private canvas:HTMLCanvasElement;
+  private canvasDataLayer:HTMLCanvasElement;
+  private canvasSelectionLayer:HTMLCanvasElement;
   private tree:Quadtree<T>;
   private selectionTree:Quadtree<T>;
 
@@ -190,7 +191,8 @@ export default class Scatterplot<T> {
 
     //init dom
     parent.innerHTML = `
-      <canvas></canvas>
+      <canvas class="${cssprefix}-data-layer"></canvas>
+      <canvas class="${cssprefix}-selection-layer"></canvas>
       <svg class="${cssprefix}-axis-left" style="width: ${this.props.margin.left + 2}px;">
         <g transform="translate(${this.props.margin.left},0)"><g>
       </svg>
@@ -200,7 +202,8 @@ export default class Scatterplot<T> {
     `;
     parent.classList.add(cssprefix);
 
-    this.canvas = <HTMLCanvasElement>parent.children[0];
+    this.canvasDataLayer = <HTMLCanvasElement>parent.children[0];
+    this.canvasSelectionLayer = <HTMLCanvasElement>parent.children[1];
 
     //register zoom
     const zoom = d3zoom()
@@ -216,7 +219,7 @@ export default class Scatterplot<T> {
       .filter(() => d3event.button === 0 && this.props.isSelectEvent(<MouseEvent>d3event));
 
     //need to use d3 for d3.mouse to work
-    select(this.canvas)
+    select(this.parent)
       .call(zoom)
       .call(drag)
       .on('click', () => this.onClick(d3event))
@@ -233,10 +236,9 @@ export default class Scatterplot<T> {
   }
 
 
-  private get ctx() {
-    return this.canvas.getContext('2d');
+  private ctx(canvas: HTMLCanvasElement) {
+    return canvas.getContext('2d');
   }
-
 
   /**
    * returns the current selection
@@ -321,12 +323,10 @@ export default class Scatterplot<T> {
   }
 
   private checkResize() {
-    const c = this.canvas;
+    const c = this.canvasDataLayer;
     if (c.width !== c.clientWidth || c.height !== c.clientHeight) {
-      c.width = c.clientWidth;
-      //this.svg.width = c.clientWidth;
-      c.height = c.clientHeight;
-      //this.svg.height = c.clientHeight;
+      this.canvasSelectionLayer.width = c.width = c.clientWidth;
+      this.canvasSelectionLayer.height = c.height = c.clientHeight;
       return true;
     }
     return false;
@@ -339,13 +339,13 @@ export default class Scatterplot<T> {
 
 
   private transformedScales() {
-    const transform = zoomTransform(this.canvas);
+    const transform = zoomTransform(this.parent);
     const xscale = transform.rescaleX(this.props.xscale);
     const yscale = transform.rescaleY(this.props.yscale);
     return {xscale, yscale};
   }
 
-  private getMouseNormalizedPos(pixelpos = mouse(this.canvas)) {
+  private getMouseNormalizedPos(pixelpos = mouse(this.parent)) {
     const { n2pX, n2pY, transform} = this.transformedNormalized2PixelScales();
 
     function rangeRange(s:IScale) {
@@ -370,7 +370,7 @@ export default class Scatterplot<T> {
   }
 
   private transformedNormalized2PixelScales() {
-    const transform = zoomTransform(this.canvas);
+    const transform = zoomTransform(this.parent);
     const n2pX = transform.rescaleX(this.normalized2pixel.x);
     const n2pY = transform.rescaleY(this.normalized2pixel.y);
     return {transform, n2pX, n2pY};
@@ -426,12 +426,14 @@ export default class Scatterplot<T> {
     const {x, y, clickRadius} = this.getMouseNormalizedPos(pos);
     const items = findAll(this.tree, x, y, clickRadius);
     this.props.showTooltip(this.parent, items, pos[0], pos[1]);
+    this.showTooltipHandle = -1;
   }
 
   private onMouseMove(event:MouseEvent) {
-    //clear old
-    clearTimeout(this.showTooltipHandle);
-    const pos = mouse(this.canvas);
+    if (this.showTooltipHandle >= 0) {
+      this.onMouseLeave(event);
+    }
+    const pos = mouse(this.parent);
     //TODO find a more efficient way or optimize the timing
     this.showTooltipHandle = setTimeout(this.showTooltip.bind(this, pos), this.props.tooltipDelay);
   }
@@ -439,6 +441,7 @@ export default class Scatterplot<T> {
   private onMouseLeave(event:MouseEvent) {
     clearTimeout(this.showTooltipHandle);
     this.showTooltipHandle = -1;
+    this.props.showTooltip(this.parent, [], 0, 0);
   }
 
   render(reason = ERenderReason.DIRTY) {
@@ -447,8 +450,8 @@ export default class Scatterplot<T> {
       return this.resized();
     }
 
-    const c = this.canvas,
-      ctx = this.ctx,
+    const c = this.canvasDataLayer,
+      ctx = this.ctx(c),
       margin = this.props.margin,
       bounds = {x0: margin.left, y0: margin.top, x1: c.clientWidth - margin.right, y1: c.clientHeight - margin.bottom};
 
