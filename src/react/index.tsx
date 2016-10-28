@@ -9,7 +9,7 @@ import * as React from 'react';
 import Impl from '..';
 import merge from '../merge';
 import {IScatterplotOptions} from '..';
-
+export {scale, symbol} from '..';
 /**
  * all scatterplot options and the data
  */
