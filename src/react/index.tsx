@@ -10,14 +10,23 @@ import Impl from '..';
 import merge from '../merge';
 import {IScatterplotOptions} from '..';
 
+/**
+ * all scatterplot options and the data
+ */
 export interface IScatterplotProps<T> extends IScatterplotOptions<T> {
   data: T[];
 }
 
+/**
+ * just the selection
+ */
 export interface IScatterplotState<T> {
   selection: T[];
 }
 
+/**
+ * scatterplot component wrapping the scatterplot implementation
+ */
 export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>,IScatterplotState<T>> {
   private plot: Impl<T> = null;
   private parent: HTMLDivElement = null;
@@ -33,17 +42,21 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
   }
 
   componentDidMount() {
+    //create impl
     var clone = merge({}, this.props);
     this.plot = new Impl(this.props.data, this.parent, merge(clone, {
       onSelectionChanged: () => {
         this.updatedByMe = true;
+        //update my state and notify
         this.state.selection = this.plot.selection;
+        this.props.onSelectionChanged();
       }
     }));
     this.plot.render();
   }
 
   shouldComponentUpdate(nextProps: IScatterplotProps<T>, nextState: IScatterplotState<T>) {
+    //i changed the state to reflect the changes in the impl selection
     if (this.updatedByMe) {
       return false;
     }
@@ -70,11 +83,11 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
 }
 
 (Scatterplot as any).propTypes = {
- data: React.PropTypes.array.isRequired,
+  data: React.PropTypes.array.isRequired,
   onSelectionChanged: React.PropTypes.func
 };
 
 (Scatterplot as any).defaultProps = {
- data: [],
-  onSelectionChanged: null
+  data: [],
+  onSelectionChanged: ()=>undefined
 };
