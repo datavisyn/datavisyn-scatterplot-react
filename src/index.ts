@@ -61,14 +61,14 @@ export interface IScatterplotOptions<T> {
    * default: d.x
    * @param d
    */
-  x:IAccessor<T>;
+  x?:IAccessor<T>;
 
   /**
    * y accessor of the data
    * default: d.y
    * @param d
    */
-  y:IAccessor<T>;
+  y?:IAccessor<T>;
 
   /**
    * d3 x scale
@@ -86,7 +86,7 @@ export interface IScatterplotOptions<T> {
    * symbol used to render an data point
    * default: steelblue circle
    */
-    symbol?:ISymbol<T>;
+  symbol?:ISymbol<T>;
 
   /**
    * the radius in pixel in which a mouse click will be searched
@@ -118,7 +118,7 @@ export interface IScatterplotOptions<T> {
    * hook when the selection has changed
    * default: none
    */
-  onSelectionChanged?(scatterplot:Scatterplot<T>);
+  onSelectionChanged?();
 
   /**
    * determines whether the given mouse is a selection or panning event
@@ -288,7 +288,7 @@ export default class Scatterplot<T> {
     this.selectionTree.removeAll(s);
 
     if (changed) {
-      this.props.onSelectionChanged(this);
+      this.props.onSelectionChanged.call(this);
       this.render(ERenderReason.SELECTION_CHANGED);
     }
   }
@@ -298,7 +298,7 @@ export default class Scatterplot<T> {
    */
   clearSelection() {
     this.selectionTree = quadtree([], this.tree.x(), this.tree.y());
-    this.props.onSelectionChanged(this);
+    this.props.onSelectionChanged.call(this);
     this.render(ERenderReason.SELECTION_CHANGED);
   }
 
@@ -311,7 +311,7 @@ export default class Scatterplot<T> {
       return;
     }
     this.selectionTree.addAll(items);
-    this.props.onSelectionChanged(this);
+    this.props.onSelectionChanged.call(this);
     this.render(ERenderReason.SELECTION_CHANGED);
   }
 
@@ -324,7 +324,7 @@ export default class Scatterplot<T> {
       return;
     }
     this.selectionTree.removeAll(items);
-    this.props.onSelectionChanged(this);
+    this.props.onSelectionChanged.call(this);
     this.render(ERenderReason.SELECTION_CHANGED);
   }
 

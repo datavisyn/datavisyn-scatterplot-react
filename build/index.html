@@ -40,7 +40,7 @@
       var div = document.querySelector('div');
       div.innerHTML = ''; //clear existing stuff
 
-      var s = new datavisyn.scatterplot.create(data, div);
+      var s = new datavisyn.scatterplot.default(data, div);
       //hack render to have information
       var bak = s.render.bind(s);
       s.render = function() {
@@ -56,6 +56,11 @@
     };
     rebuild(10000);
   })();
+
+  //React.render(
+  //  <MyComponent>Body</MyComponent>,
+  //  body
+//);
 </script>
 </body>
 </html>
