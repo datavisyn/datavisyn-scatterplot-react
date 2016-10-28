@@ -6,10 +6,9 @@
 
 
 import * as React from 'react';
-import Impl from '..';
-import merge from '../merge';
-import {IScatterplotOptions} from '..';
-export {scale, symbol} from '..';
+import merge from 'datavisyn-scatterplot/src/merge';
+import Impl, {IScatterplotOptions} from 'datavisyn-scatterplot/src';
+export {scale, symbol} from 'datavisyn-scatterplot/src';
 /**
  * all scatterplot options and the data
  */

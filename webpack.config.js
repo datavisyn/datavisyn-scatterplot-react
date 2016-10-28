@@ -34,7 +34,7 @@ module.exports = function (env) {
     resolve: {
       extensions: ['.webpack.js', '.web.js', '.js', '.ts', '.tsx'],
 
-      modules: [path.resolve(__dirname, 'src'), 'node_modules']
+      modules: [path.resolve(__dirname, 'src'), 'node_modules',path.resolve(__dirname, '../')]
     },
     externals: {
       react: 'React',
