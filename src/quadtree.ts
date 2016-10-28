@@ -1,3 +1,9 @@
+/**
+ * author:  Samuel Gratzl
+ * email:   samuel_gratzl@gmx.at
+ * created: 2016-10-28T11:19:52.797Z
+ */
+
 import {Quadtree, QuadtreeInternalNode, QuadtreeLeaf} from 'd3-quadtree';
 
 export const ABORT_TRAVERSAL = true;

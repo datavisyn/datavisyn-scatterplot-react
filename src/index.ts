@@ -1,3 +1,9 @@
+/**
+ * author:  Samuel Gratzl
+ * email:   samuel_gratzl@gmx.at
+ * created: 2016-10-28T11:19:52.797Z
+ */
+
 import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
 import {select, mouse, event as d3event} from 'd3-selection';

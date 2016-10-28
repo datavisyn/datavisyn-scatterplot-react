@@ -1,3 +1,9 @@
+/**
+ * author:  Samuel Gratzl
+ * email:   samuel_gratzl@gmx.at
+ * created: 2016-10-28T11:19:52.797Z
+ */
+
 import {line as d3line, curveLinearClosed} from 'd3-shape';
 import {polygonHull, polygonContains} from 'd3-polygon';
 import {extent} from 'd3-array';

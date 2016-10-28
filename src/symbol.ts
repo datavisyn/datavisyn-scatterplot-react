@@ -1,3 +1,9 @@
+/**
+ * author:  Samuel Gratzl
+ * email:   samuel_gratzl@gmx.at
+ * created: 2016-10-28T11:19:52.797Z
+ */
+
 import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye} from 'd3-shape';
 
 export interface ISymbolRenderer<T> {
@@ -85,4 +91,3 @@ export function circleSymbol(fillStyle:string = 'steelblue', size = 20):ISymbol<
     };
   };
 }
-
