@@ -4,6 +4,7 @@
  * created: 2016-10-28T11:19:52.797Z
  */
 
+import './style.scss';
 import {axisLeft, axisBottom, AxisScale} from 'd3-axis';
 import * as d3scale from 'd3-scale';
 import {select, mouse, event as d3event} from 'd3-selection';
@@ -15,6 +16,8 @@ import * as _symbol from './symbol';
 import merge from './merge';
 import {findAll, forEachLeaf, isLeafNode, hasOverlap, getTreeSize, findByTester, getFirstLeaf, ABORT_TRAVERSAL, CONTINUE_TRAVERSAL, IBoundsPredicate, ITester} from './quadtree';
 import Lasso from './lasso';
+import {cssprefix} from './constants';
+import showTooltip from './tooltip';
 
 /**
  * a d3 scale essentially
@@ -96,10 +99,15 @@ export interface IScatterplotOptions<T> {
    * default: 300
    */
   tooltipDelay?: number;
+
   /**
-   * computes the tooltip string
-   */
-  tooltip?(d:T): string;
+   * shows the tooltip
+   * @param parent the scatterplot html element
+   * @param items items to show, empty to hide tooltip
+   * @param x the x position relative to the plot
+   * @param y the y position relative to the plot
+     */
+  showTooltip?(parent: HTMLElement, items:T[], x: number, y: number);
 
   /**
    * hook when the selection has changed
@@ -153,7 +161,7 @@ export default class Scatterplot<T> {
     symbol: <ISymbol<T>>circleSymbol(),
 
     tooltipDelay: 300,
-    tooltip: (d) => JSON.stringify(d),
+    showTooltip: showTooltip,
 
     onSelectionChanged: ()=>undefined,
 
@@ -182,15 +190,15 @@ export default class Scatterplot<T> {
 
     //init dom
     parent.innerHTML = `
-      <canvas style="position: absolute; z-index: 1; width: 100%; height: 100%;"></canvas>
-      <svg style="pointer-events: none; position: absolute; z-index: 2; width: ${this.props.margin.left + 2}px; height: 100%;">
+      <canvas></canvas>
+      <svg class="${cssprefix}-axis-left" style="width: ${this.props.margin.left + 2}px;">
         <g transform="translate(${this.props.margin.left},0)"><g>
       </svg>
-      <svg style="pointer-events: none; position: absolute; z-index: 3; width: 100%; height: ${this.props.margin.bottom}px; bottom: 0">
+      <svg class="${cssprefix}-axis-bottom" style="height: ${this.props.margin.bottom}px;">
         <g><g>
       </svg>
     `;
-    parent.style.position = 'relative';
+    parent.classList.add(cssprefix);
 
     this.canvas = <HTMLCanvasElement>parent.children[0];
 
@@ -417,8 +425,7 @@ export default class Scatterplot<T> {
     //highlight selected item
     const {x, y, clickRadius} = this.getMouseNormalizedPos(pos);
     const items = findAll(this.tree, x, y, clickRadius);
-    //TODO highlight item(s) in the plot
-    this.canvas.title = items.map(this.props.tooltip).join('\n');
+    this.props.showTooltip(this.parent, items, pos[0], pos[1]);
   }
 
   private onMouseMove(event:MouseEvent) {
@@ -433,7 +440,7 @@ export default class Scatterplot<T> {
     clearTimeout(this.showTooltipHandle);
     this.showTooltipHandle = -1;
   }
-  
+
   render(reason = ERenderReason.DIRTY) {
     if (this.checkResize()) {
       //check resize
@@ -529,7 +536,7 @@ export default class Scatterplot<T> {
         return ABORT_TRAVERSAL;
       }
       if (isLeafNode(node)) { //is a leaf
-        rendered += forEachLeaf(node, (d) => renderer.render(xscale(x(d)), yscale(y(d)), d));
+        rendered += forEachLeaf(<QuadtreeLeaf<T>>node, (d) => renderer.render(xscale(x(d)), yscale(y(d)), d));
       }
       return CONTINUE_TRAVERSAL;
     }

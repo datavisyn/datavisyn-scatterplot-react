@@ -48,7 +48,7 @@ export const d3SymbolWye = symbolWye;
  * @param symbol the symbol to render
  * @param fillStyle the style applied
  * @param size the size of the symbol
- * @returns {function(CanvasRenderingContext2D, IPoorManIterator): undefined}
+ * @returns {function(CanvasRenderingContext2D): undefined}
  */
 export function d3Symbol(symbol = d3SymbolCircle, fillStyle:string = 'steelblue', size = 5):ISymbol<any> {
   return (ctx:CanvasRenderingContext2D) => {
@@ -75,7 +75,7 @@ export function d3Symbol(symbol = d3SymbolCircle, fillStyle:string = 'steelblue'
  * circle symbol renderer (way faster than d3Symbol(d3symbolCircle)
  * @param fillStyle
  * @param size
- * @returns {function(CanvasRenderingContext2D, IPoorManIterator): undefined}
+ * @returns {function(CanvasRenderingContext2D): undefined}
  */
 export function circleSymbol(fillStyle:string = 'steelblue', size = 20):ISymbol<any> {
   const r = Math.sqrt(size / Math.PI);

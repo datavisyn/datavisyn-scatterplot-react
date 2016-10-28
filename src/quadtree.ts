@@ -54,7 +54,7 @@ export function findAll<T>(tree:Quadtree<T>, x:number, y:number, radius = Infini
     if (overlapping(x0, y0, x1, y1)) {
       //continue search
       if (isLeafNode(node)) {
-        forEachLeaf(node, testAdder);
+        forEachLeaf(<QuadtreeLeaf<T>>node, testAdder);
       }
       return CONTINUE_TRAVERSAL;
     }
