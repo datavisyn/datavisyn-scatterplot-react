@@ -16,7 +16,7 @@ import * as _symbol from './symbol';
 import merge from './merge';
 import {findAll, forEachLeaf, isLeafNode, hasOverlap, getTreeSize, findByTester, getFirstLeaf, ABORT_TRAVERSAL, CONTINUE_TRAVERSAL, IBoundsPredicate, ITester} from './quadtree';
 import Lasso from './lasso';
-import {cssprefix} from './constants';
+import {cssprefix, DEBUG} from './constants';
 import showTooltip from './tooltip';
 
 /**
@@ -86,7 +86,7 @@ export interface IScatterplotOptions<T> {
    * symbol used to render an data point
    * default: steelblue circle
    */
-  symbol?:ISymbol<T>;
+    symbol?:ISymbol<T>;
 
   /**
    * the radius in pixel in which a mouse click will be searched
@@ -106,8 +106,8 @@ export interface IScatterplotOptions<T> {
    * @param items items to show, empty to hide tooltip
    * @param x the x position relative to the plot
    * @param y the y position relative to the plot
-     */
-  showTooltip?(parent: HTMLElement, items:T[], x: number, y: number);
+   */
+  showTooltip?(parent:HTMLElement, items:T[], x:number, y:number);
 
   /**
    * hook when the selection has changed
@@ -155,7 +155,7 @@ export default class Scatterplot<T> {
     x: (d) => (<any>d).x,
     y: (d) => (<any>d).y,
 
-    xscale : <IScale>d3scale.scaleLinear().domain([0, 100]),
+    xscale: <IScale>d3scale.scaleLinear().domain([0, 100]),
     yscale: <IScale>d3scale.scaleLinear().domain([0, 100]),
 
     symbol: <ISymbol<T>>circleSymbol(),
@@ -235,11 +235,6 @@ export default class Scatterplot<T> {
     this.selectionTree = quadtree([], this.tree.x(), this.tree.y());
   }
 
-
-  private ctx(canvas: HTMLCanvasElement) {
-    return canvas.getContext('2d');
-  }
-
   /**
    * returns the current selection
    */
@@ -250,7 +245,7 @@ export default class Scatterplot<T> {
   /**
    * sets the current selection
    * @param selection
-     */
+   */
   set selection(selection:T[]) {
     if (selection == null) {
       selection = []; //ensure valid value
@@ -449,9 +444,9 @@ export default class Scatterplot<T> {
       //check resize
       return this.resized();
     }
+    console.log(reason);
 
-    const c = this.canvasDataLayer,
-      ctx = this.ctx(c),
+    const c= this.canvasDataLayer,
       margin = this.props.margin,
       bounds = {x0: margin.left, y0: margin.top, x1: c.clientWidth - margin.right, y1: c.clientHeight - margin.bottom};
 
@@ -464,22 +459,11 @@ export default class Scatterplot<T> {
     //transform scale
     const { xscale, yscale} = this.transformedScales();
 
-    if (reason !== ERenderReason.SELECTION_CHANGED) {
-      this.renderAxes(xscale, yscale);
-    }
-
     const { n2pX, n2pY} = this.transformedNormalized2PixelScales();
     const nx = (v) => n2pX.invert(v),
       ny = (v) => n2pY.invert(v);
     //inverted y scale
     const isNodeVisible = hasOverlap(nx(bounds.x0), ny(bounds.y1), nx(bounds.x1), ny(bounds.y0));
-
-    ctx.clearRect(0, 0, c.width, c.height);
-
-    ctx.save();
-
-    ctx.rect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
-    ctx.clip();
 
     function useAggregation(x0:number, y0:number, x1:number, y1:number) {
       x0 = n2pX(x0);
@@ -490,11 +474,33 @@ export default class Scatterplot<T> {
       return min_size < 5; //TODO tune depend on visual impact
     }
 
-    this.renderPoints(ctx, xscale, yscale, isNodeVisible, useAggregation, reason);
 
-    ctx.restore();
+    const renderCtx = (isSelection = false) => {
+      const ctx = (isSelection ? this.canvasSelectionLayer : this.canvasDataLayer).getContext('2d');
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.save();
+      ctx.rect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
+      ctx.clip();
+      const tree = isSelection ? this.selectionTree : this.tree;
+      const renderer = this.props.symbol(ctx, isSelection ? ERenderMode.SELECTED : ERenderMode.NORMAL);
+      const debug = !isSelection && DEBUG;
+      this.renderTree(ctx, tree, renderer, xscale, yscale, isNodeVisible, useAggregation, debug);
+      ctx.restore();
+      return ctx;
+    };
 
-    this.lasso.render(ctx);
+
+    if (reason !== ERenderReason.SELECTION_CHANGED) {
+      renderCtx(false);
+      this.renderAxes(xscale, yscale);
+    } else {
+      console.log('skip data');
+    }
+    {
+      let ctx = renderCtx(true);
+      this.lasso.render(ctx);
+    }
+
   }
 
   private renderAxes(xscale:IScale, yscale:IScale) {
@@ -505,9 +511,8 @@ export default class Scatterplot<T> {
     $parent.select('svg:last-of-type g').call(bottom);
   }
 
-  private renderPoints(ctx:CanvasRenderingContext2D, xscale:IScale, yscale:IScale, isNodeVisible:IBoundsPredicate, useAggregation:IBoundsPredicate, reason = ERenderReason.DIRTY) {
+  private renderTree(ctx:CanvasRenderingContext2D, tree: Quadtree<T>, renderer:ISymbolRenderer<T>, xscale:IScale, yscale:IScale, isNodeVisible:IBoundsPredicate, useAggregation:IBoundsPredicate, debug = false) {
     const {x, y} = this.props;
-    var renderer:ISymbolRenderer<T> = null;
 
     //function debugNode(color:string, x0:number, y0:number, x1:number, y1:number) {
     //  ctx.closePath();
@@ -523,18 +528,19 @@ export default class Scatterplot<T> {
     //
     //}
 
+    //debug stats
     var rendered = 0, aggregated = 0, hidden = 0;
 
     function visitTree(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0:number, y0:number, x1:number, y1:number) {
       if (!isNodeVisible(x0, y0, x1, y1)) {
-        hidden += getTreeSize(node);
+        hidden += debug ? getTreeSize(node): 0;
         return ABORT_TRAVERSAL;
       }
       if (useAggregation(x0, y0, x1, y1)) {
         let d = getFirstLeaf(node);
         //console.log('aggregate', getTreeSize(node));
         rendered++;
-        aggregated += getTreeSize(node) - 1;
+        aggregated += debug ? (getTreeSize(node) - 1): 0;
         renderer.render(xscale(x(d)), yscale(y(d)), d);
         return ABORT_TRAVERSAL;
       }
@@ -546,16 +552,12 @@ export default class Scatterplot<T> {
 
     ctx.save();
 
-    renderer = this.props.symbol(ctx, ERenderMode.NORMAL);
-    rendered = 0;
-    this.tree.visit(visitTree);
-    console.log('rendered', rendered, 'aggregated', aggregated, 'hidden', hidden, 'total', this.tree.size());
+    tree.visit(visitTree);
     renderer.done();
 
-    //render selected - TODO maybe in own canvas for performance of selection changes
-    renderer = this.props.symbol(ctx, ERenderMode.SELECTED);
-    this.selectionTree.visit(visitTree);
-    renderer.done();
+    if (debug) {
+      console.log('rendered', rendered, 'aggregated', aggregated, 'hidden', hidden, 'total', this.tree.size());
+    }
 
     //a dummy path to clear the 'to draw' state
     ctx.beginPath();

@@ -45,7 +45,7 @@
       var bak = s.render.bind(s);
       s.render = function() {
         console.time('render');
-        bak();
+        bak.apply(s, [].slice.call(arguments));
         console.timeEnd('render');
       };
       s.render();

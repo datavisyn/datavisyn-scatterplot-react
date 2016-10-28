@@ -9,3 +9,4 @@
  * @type {string}
  */
 export const cssprefix = 'datavisyn-scatterplot';
+export const DEBUG = true;
