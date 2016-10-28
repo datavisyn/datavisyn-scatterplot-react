@@ -397,12 +397,13 @@ export default class Scatterplot<T> {
     this.currentTransform = new_;
     const tchanged = (old.x !== new_.x || old.y !== new_.y);
     const schanged = (old.k !== new_.k);
+    const delta = { x: new_.x - old.x, y: new_.y - old.y, k : new_.k / old.k};
     if(tchanged && schanged) {
-      this.render(ERenderReason.PERFORM_TRANSLATE); //use translate
+      this.render(ERenderReason.PERFORM_TRANSLATE, delta); //use translate
     } else if (tchanged) {
-      this.render(ERenderReason.PERFORM_TRANSLATE);
+      this.render(ERenderReason.PERFORM_TRANSLATE, delta);
     } else if (schanged) {
-      this.render(ERenderReason.PERFORM_SCALE);
+      this.render(ERenderReason.PERFORM_SCALE, delta);
     }
     //nothing if no changed
   }
@@ -465,7 +466,7 @@ export default class Scatterplot<T> {
     this.props.showTooltip(this.parent, [], 0, 0);
   }
 
-  render(reason = ERenderReason.DIRTY) {
+  render(reason = ERenderReason.DIRTY, transformDelta = { x: 0, y: 0, k: 1}) {
     if (this.checkResize()) {
       //check resize
       return this.resized();
@@ -519,6 +520,25 @@ export default class Scatterplot<T> {
       let ctx = renderCtx(true);
       this.lasso.render(ctx);
     };
+
+    const transformData = (x: number, y: number, k: number) => {
+      //idea copy the data layer to selection layer in a transformed way and swap
+      const ctx = this.canvasSelectionLayer.getContext('2d');
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.save();
+      ctx.rect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
+      ctx.clip();
+      ctx.translate(x,y);
+      ctx.scale(k,k);
+      ctx.drawImage(this.canvasDataLayer, 0, 0);
+      ctx.restore();
+
+      //swap and update class names
+      [this.canvasDataLayer, this.canvasSelectionLayer] = [this.canvasSelectionLayer, this.canvasDataLayer];
+      this.canvasDataLayer.className = `${cssprefix}-data-layer`;
+      this.canvasSelectionLayer.className = `${cssprefix}-selection-layer`;
+    };
+
     const renderAxes = this.renderAxes.bind(this, xscale, yscale);
     const renderData = renderCtx.bind(this, false);
 
@@ -526,9 +546,10 @@ export default class Scatterplot<T> {
     //render logic
     switch (reason) {
       case ERenderReason.PERFORM_SCALE:
-        break;
       case ERenderReason.PERFORM_TRANSLATE:
-
+        transformData(transformDelta.x, transformDelta.y, transformDelta.k);
+        renderSelection();
+        renderAxes();
         break;
       case ERenderReason.SELECTION_CHANGED:
         renderSelection();
