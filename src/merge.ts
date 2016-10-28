@@ -17,6 +17,7 @@ export default function merge<T>(target:T, other?:any) {
   Object.keys(other).forEach((key) => {
     const v = other[key];
     if (Object.prototype.toString.call(v) === '[object Object]') {
+      //nested
       target[key] = (target[key] != null) ? merge(target[key], v) : v;
     } else {
       target[key] = v;

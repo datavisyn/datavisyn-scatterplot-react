@@ -6,18 +6,32 @@
 
 import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye} from 'd3-shape';
 
+/**
+ * a symbol renderer renderes a bunch of data points using `render` at the end `done` will be called
+ */
 export interface ISymbolRenderer<T> {
   render(x:number, y:number, d:T);
   done();
 }
 
+/**
+ * rendering mode for different kind of renderings
+ */
 export enum ERenderMode {
   NORMAL,
   SELECTED,
   HOVER
 }
 
+/**
+ * factory for creating symbols renderers
+ */
 export interface ISymbol<T> {
+  /**
+   * @param ctx the context to use
+   * @param mode the current render mode
+   * @returns a symbol renderer
+   */
   (ctx:CanvasRenderingContext2D, mode: ERenderMode): ISymbolRenderer<T>;
 }
 

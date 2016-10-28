@@ -16,6 +16,9 @@ import merge from './merge';
 import {findAll, forEachLeaf, isLeafNode, hasOverlap, getTreeSize, findByTester, getFirstLeaf, ABORT_TRAVERSAL, CONTINUE_TRAVERSAL, IBoundsPredicate, ITester} from './quadtree';
 import Lasso from './lasso';
 
+/**
+ * a d3 scale essentially
+ */
 export interface IScale extends AxisScale<number>, ZoomScale {
   range(range:number[]);
   range(): number[];
@@ -29,15 +32,13 @@ export interface IAccessor<T> {
   (v:T) : number;
 }
 
-
-export interface ISymbolRenderer<T> {
-  render(x:number, y:number, d:T);
-  done();
-}
-
+/**
+ * scatterplot options
+ */
 export interface IScatterplotOptions<T> {
   /**
-   * default: 20
+   * margin for the scatterplot area
+   * default (left=40, top=10, right=10, bottom=20)
    */
   margin?: {
     left?: number;
@@ -46,40 +47,85 @@ export interface IScatterplotOptions<T> {
     bottom?: number;
   };
 
+  /**
+   * min max scaling factor
+   * default: 0.5, 4
+   */
   scaleExtent?: [number, number];
 
   /**
    * x accessor of the data
+   * default: d.x
    * @param d
    */
   x:IAccessor<T>;
 
   /**
    * y accessor of the data
+   * default: d.y
    * @param d
    */
   y:IAccessor<T>;
 
+  /**
+   * d3 x scale
+   * default: linear scale with a domain from 0...100
+   */
+  xscale?:IScale;
 
+  /**
+   * d3 y scale
+   * default: linear scale with a domain from 0...100
+   */
+  yscale?:IScale;
+
+  /**
+   * symbol used to render an data point
+   * default: steelblue circle
+   */
+  symbol?:ISymbol<T>;
+
+  /**
+   * the radius in pixel in which a mouse click will be searched
+   * default: 10
+   */
   clickRadius?: number;
 
+  /**
+   * delay before a tooltip will be shown after a mouse was moved
+   * default: 300
+   */
   tooltipDelay?: number;
+  /**
+   * computes the tooltip string
+   */
   tooltip?(d:T): string;
 
+  /**
+   * hook when the selection has changed
+   * default: none
+   */
   onSelectionChanged?(scatterplot:Scatterplot<T>);
 
-
+  /**
+   * determines whether the given mouse is a selection or panning event
+   * default: event.ctrlKey || event.altKey
+   */
   isSelectEvent?(event:MouseEvent) : boolean; //=> event.ctrlKey || event.altKey
 }
 
+//normalized range the quadtree is defined
 const NORMALIZED_RANGE = [0, 100];
 
+/**
+ * reasons why a new render pass is needed
+ */
 enum ERenderReason {
   DIRTY,
   SELECTION_CHANGED,
   TRANSLATED,
   SCALED,
-  PERFORM_SCALE,
+  PERFORM_SCALE, //performing a scale operation
   PERFORM_TRANSLATE
 }
 
@@ -88,26 +134,8 @@ enum ERenderReason {
  * a class for rendering a scatterplot in a canvas
  */
 export default class Scatterplot<T> {
-  /**
-   * x scale applied to value
-   */
-  xscale:IScale = d3scale.scaleLinear().domain([0, 100]);
 
-  /**
-   * y scale applied to valuee
-   */
-  yscale:IScale = d3scale.scaleLinear().domain([0, 100]);
-
-  private normalized2pixel = {
-    x: d3scale.scaleLinear().domain(NORMALIZED_RANGE),
-    y: d3scale.scaleLinear().domain(NORMALIZED_RANGE)
-  };
-
-  symbol:ISymbol<T> = circleSymbol();
-
-  private canvas:HTMLCanvasElement;
-
-  private options:IScatterplotOptions<T> = {
+  private props:IScatterplotOptions<T> = {
     margin: {
       left: 40,
       top: 10,
@@ -118,6 +146,12 @@ export default class Scatterplot<T> {
     scaleExtent: [1 / 2, 4],
     x: (d) => (<any>d).x,
     y: (d) => (<any>d).y,
+
+    xscale : <IScale>d3scale.scaleLinear().domain([0, 100]),
+    yscale: <IScale>d3scale.scaleLinear().domain([0, 100]),
+
+    symbol: <ISymbol<T>>circleSymbol(),
+
     tooltipDelay: 300,
     tooltip: (d) => JSON.stringify(d),
 
@@ -126,23 +160,33 @@ export default class Scatterplot<T> {
     isSelectEvent: (event:MouseEvent) => event.ctrlKey || event.altKey
   };
 
-  private tree:Quadtree<T>;
-  private _selection:Quadtree<T>;
 
+  private normalized2pixel = {
+    x: d3scale.scaleLinear().domain(NORMALIZED_RANGE),
+    y: d3scale.scaleLinear().domain(NORMALIZED_RANGE)
+  };
+  private canvas:HTMLCanvasElement;
+  private tree:Quadtree<T>;
+  private selectionTree:Quadtree<T>;
+
+  /**
+   * timout handle when the tooltip is shown
+   * @type {number}
+   */
   private showTooltipHandle = -1;
 
   private lasso = new Lasso();
 
-  constructor(data:T[], private parent:HTMLElement, options?:IScatterplotOptions<T>) {
-    this.options = merge(this.options, options);
+  constructor(data:T[], private parent:HTMLElement, props?:IScatterplotOptions<T>) {
+    this.props = merge(this.props, props);
 
     //init dom
     parent.innerHTML = `
       <canvas style="position: absolute; z-index: 1; width: 100%; height: 100%;"></canvas>
-      <svg style="pointer-events: none; position: absolute; z-index: 2; width: ${this.options.margin.left + 2}px; height: 100%;">
-        <g transform="translate(${this.options.margin.left},0)"><g>
+      <svg style="pointer-events: none; position: absolute; z-index: 2; width: ${this.props.margin.left + 2}px; height: 100%;">
+        <g transform="translate(${this.props.margin.left},0)"><g>
       </svg>
-      <svg style="pointer-events: none; position: absolute; z-index: 3; width: 100%; height: ${this.options.margin.bottom}px; bottom: 0">
+      <svg style="pointer-events: none; position: absolute; z-index: 3; width: 100%; height: ${this.props.margin.bottom}px; bottom: 0">
         <g><g>
       </svg>
     `;
@@ -154,15 +198,16 @@ export default class Scatterplot<T> {
     const zoom = d3zoom()
       .on('zoom', this.onZoom.bind(this))
       .on('end', this.onZoomEnd.bind(this))
-      .scaleExtent(this.options.scaleExtent)
-      .filter(() => d3event.button === 0 && !this.options.isSelectEvent(<MouseEvent>d3event));
+      .scaleExtent(this.props.scaleExtent)
+      .filter(() => d3event.button === 0 && !this.props.isSelectEvent(<MouseEvent>d3event));
 
     const drag = d3drag()
       .on('start', this.onDragStart.bind(this))
       .on('drag', this.onDrag.bind(this))
       .on('end', this.onDragEnd.bind(this))
-      .filter(() => d3event.button === 0 && this.options.isSelectEvent(<MouseEvent>d3event));
+      .filter(() => d3event.button === 0 && this.props.isSelectEvent(<MouseEvent>d3event));
 
+    //need to use d3 for d3.mouse to work
     select(this.canvas)
       .call(zoom)
       .call(drag)
@@ -172,10 +217,99 @@ export default class Scatterplot<T> {
 
     //generate a quad tree out of the data
     //work on a normalized dimension to avoid hazzling
-    const domain2normalizedX = this.xscale.copy().range(NORMALIZED_RANGE);
-    const domain2normalizedY = this.yscale.copy().range(NORMALIZED_RANGE);
-    this.tree = quadtree(data, (d) => domain2normalizedX(this.options.x(d)), (d) => domain2normalizedY(this.options.y(d)));
-    this._selection = quadtree([], this.tree.x(), this.tree.y());
+    const domain2normalizedX = this.props.xscale.copy().range(NORMALIZED_RANGE);
+    const domain2normalizedY = this.props.yscale.copy().range(NORMALIZED_RANGE);
+
+    this.tree = quadtree(data, (d) => domain2normalizedX(this.props.x(d)), (d) => domain2normalizedY(this.props.y(d)));
+    this.selectionTree = quadtree([], this.tree.x(), this.tree.y());
+  }
+
+
+  private get ctx() {
+    return this.canvas.getContext('2d');
+  }
+
+
+  /**
+   * returns the current selection
+   */
+  get selection() {
+    return this.selectionTree.data();
+  }
+
+  /**
+   * sets the current selection
+   * @param selection
+     */
+  set selection(selection:T[]) {
+    if (selection == null) {
+      selection = []; //ensure valid value
+    }
+    //this.lasso.clear();
+    if (selection.length === 0) {
+      this.clearSelection();
+      return;
+    }
+    //find the delta
+    var changed = false;
+    const s = this.selection;
+    selection.forEach((s_new) => {
+      const i = s.indexOf(s_new);
+      if (i < 0) { //new
+        this.selectionTree.add(s_new);
+        changed = true;
+      } else {
+        s.splice(i, 1); //mark as used
+      }
+    });
+    changed = changed || s.length > 0;
+    //remove removed items
+    this.selectionTree.removeAll(s);
+
+    if (changed) {
+      this.props.onSelectionChanged(this);
+      this.render(ERenderReason.SELECTION_CHANGED);
+    }
+  }
+
+  /**
+   * clears the selection, same as .selection=[]
+   */
+  clearSelection() {
+    this.selectionTree = quadtree([], this.tree.x(), this.tree.y());
+    this.props.onSelectionChanged(this);
+    this.render(ERenderReason.SELECTION_CHANGED);
+  }
+
+  /**
+   * shortcut to add items to the selection
+   * @param items
+   */
+  addToSelection(items:T[]) {
+    if (items.length === 0) {
+      return;
+    }
+    this.selectionTree.addAll(items);
+    this.props.onSelectionChanged(this);
+    this.render(ERenderReason.SELECTION_CHANGED);
+  }
+
+  /**
+   * shortcut to remove items from the selection
+   * @param items
+   */
+  removeFromSelection(items:T[]) {
+    if (items.length === 0) {
+      return;
+    }
+    this.selectionTree.removeAll(items);
+    this.props.onSelectionChanged(this);
+    this.render(ERenderReason.SELECTION_CHANGED);
+  }
+
+  private selectWithTester(tester:ITester) {
+    const selection = findByTester(this.tree, tester);
+    this.selection = selection;
   }
 
   private checkResize() {
@@ -190,77 +324,116 @@ export default class Scatterplot<T> {
     return false;
   }
 
-  private get ctx() {
-    return this.canvas.getContext('2d');
-  }
-
-  get selection() {
-    return this._selection.data();
-  }
-
-  set selection(selection:T[]) {
-    //this.lasso.clear();
-    if (selection.length === 0) {
-      this.clearSelection();
-      return;
-    }
-    //find the delta
-    var changed = false;
-    const s = this.selection;
-    selection.forEach((s_new) => {
-      const i = s.indexOf(s_new);
-      if (i < 0) { //new
-        this._selection.add(s_new);
-        changed = true;
-      } else {
-        s.splice(i, 1); //mark as used
-      }
-    });
-    changed = changed || s.length > 0;
-    //remove removed items
-    this._selection.removeAll(s);
-
-    if (changed) {
-      this.options.onSelectionChanged(this);
-      this.render(ERenderReason.SELECTION_CHANGED);
-    }
-  }
-
-  clearSelection() {
-    this._selection = quadtree([], this.tree.x(), this.tree.y());
-    this.options.onSelectionChanged(this);
-    this.render(ERenderReason.SELECTION_CHANGED);
-  }
-
-  addToSelection(items:T[]) {
-    if (items.length === 0) {
-      return;
-    }
-    this._selection.addAll(items);
-    this.options.onSelectionChanged(this);
-    this.render(ERenderReason.SELECTION_CHANGED);
-  }
-
-  removeFromSelection(items:T[]) {
-    if (items.length === 0) {
-      return;
-    }
-    this._selection.removeAll(items);
-    this.options.onSelectionChanged(this);
-    this.render(ERenderReason.SELECTION_CHANGED);
-  }
-
-  private transformedScales() {
-    const transform = zoomTransform(this.canvas);
-    const xscale = transform.rescaleX(this.xscale);
-    const yscale = transform.rescaleY(this.yscale);
-    return {xscale, yscale};
-  }
 
   resized() {
     this.render(ERenderReason.DIRTY);
   }
 
+
+  private transformedScales() {
+    const transform = zoomTransform(this.canvas);
+    const xscale = transform.rescaleX(this.props.xscale);
+    const yscale = transform.rescaleY(this.props.yscale);
+    return {xscale, yscale};
+  }
+
+  private getMouseNormalizedPos(pixelpos = mouse(this.canvas)) {
+    const { n2pX, n2pY, transform} = this.transformedNormalized2PixelScales();
+
+    function rangeRange(s:IScale) {
+      const range = s.range();
+      return Math.abs(range[1] - range[0]);
+    }
+
+    const computeClickRadius = () => {
+      //compute the data domain radius based on xscale and the scaling factor
+      const view = this.props.clickRadius;
+      const viewSize = transform.k * Math.min(rangeRange(this.normalized2pixel.x), rangeRange(this.normalized2pixel.y));
+      const normalizedSize = NORMALIZED_RANGE[1];
+      //tranform from view to data without translation
+      const normalized = view / viewSize * normalizedSize;
+      //const view = this.props.xscale(base)*transform.k - this.props.xscale.range()[0]; //skip translation
+      console.log(view, viewSize, transform.k, normalizedSize, normalized);
+      return normalized;
+    };
+
+    const clickRadius = computeClickRadius();
+    return {x: n2pX.invert(pixelpos[0]), y: n2pY.invert(pixelpos[1]), clickRadius};
+  }
+
+  private transformedNormalized2PixelScales() {
+    const transform = zoomTransform(this.canvas);
+    const n2pX = transform.rescaleX(this.normalized2pixel.x);
+    const n2pY = transform.rescaleY(this.normalized2pixel.y);
+    return {transform, n2pX, n2pY};
+  };
+
+  private onZoom() {
+    // TODO more intelligent depending on zoom kind
+    // intermediate zoom just move the context
+    this.render(ERenderReason.PERFORM_SCALE);
+  }
+
+  private onZoomEnd() {
+    this.render(ERenderReason.SCALED);
+  }
+
+  private onDragStart() {
+    this.lasso.start(d3event.x, d3event.y);
+    this.clearSelection();
+  }
+
+  private onDrag() {
+    this.lasso.drag(d3event.x, d3event.y);
+
+    const {n2pX, n2pY} = this.transformedNormalized2PixelScales();
+    const tester = this.lasso.tester(n2pX.invert.bind(n2pX), n2pY.invert.bind(n2pY));
+    if (tester) {
+      this.selectWithTester(tester);
+    } else {
+      this.render(ERenderReason.SELECTION_CHANGED);
+    }
+  }
+
+  private onDragEnd() {
+    this.lasso.end(d3event.x, d3event.y);
+    this.render(ERenderReason.SELECTION_CHANGED);
+  }
+
+  private onClick(event:MouseEvent) {
+    if (event.button > 0) {
+      //right button or something like that = reset
+      this.selection = [];
+      return;
+    }
+    const {x, y, clickRadius} = this.getMouseNormalizedPos();
+
+    //find closest data item
+    const closest = findAll(this.tree, x, y, clickRadius);
+    this.selection = closest;
+  }
+
+  private showTooltip(pos:[number, number]) {
+    //highlight selected item
+    const {x, y, clickRadius} = this.getMouseNormalizedPos(pos);
+    const items = findAll(this.tree, x, y, clickRadius);
+    //TODO highlight item(s) in the plot
+    this.canvas.title = items.map(this.props.tooltip).join('\n');
+  }
+
+  private onMouseMove(event:MouseEvent) {
+    //clear old
+    clearTimeout(this.showTooltipHandle);
+    const pos = mouse(this.canvas);
+    //TODO find a more efficient way or optimize the timing
+    this.showTooltipHandle = setTimeout(this.showTooltip.bind(this, pos), this.props.tooltipDelay);
+  }
+
+  private onMouseLeave(event:MouseEvent) {
+    clearTimeout(this.showTooltipHandle);
+    this.showTooltipHandle = -1;
+  }
+  
   render(reason = ERenderReason.DIRTY) {
     if (this.checkResize()) {
       //check resize
@@ -269,14 +442,14 @@ export default class Scatterplot<T> {
 
     const c = this.canvas,
       ctx = this.ctx,
-      margin = this.options.margin,
+      margin = this.props.margin,
       bounds = {x0: margin.left, y0: margin.top, x1: c.clientWidth - margin.right, y1: c.clientHeight - margin.bottom};
 
     if (reason === ERenderReason.DIRTY) {
-      this.xscale.range([bounds.x0, bounds.x1]);
-      this.yscale.range([bounds.y1, bounds.y0]);
-      this.normalized2pixel.x.range(this.xscale.range());
-      this.normalized2pixel.y.range(this.yscale.range());
+      this.props.xscale.range([bounds.x0, bounds.x1]);
+      this.props.yscale.range([bounds.y1, bounds.y0]);
+      this.normalized2pixel.x.range(this.props.xscale.range());
+      this.normalized2pixel.y.range(this.props.yscale.range());
     }
     //transform scale
     const { xscale, yscale} = this.transformedScales();
@@ -314,108 +487,6 @@ export default class Scatterplot<T> {
     this.lasso.render(ctx);
   }
 
-  private onZoom() {
-    // TODO more intelligent depending on zoom kind
-    // intermediate zoom just move the context
-    this.render(ERenderReason.SCALED);
-  }
-
-  private onZoomEnd() {
-    this.render(ERenderReason.SCALED);
-  }
-
-  private onDragStart() {
-    this.lasso.start(d3event.x, d3event.y);
-    this.clearSelection();
-  }
-
-  private onDrag() {
-    this.lasso.drag(d3event.x, d3event.y);
-
-    const {n2pX, n2pY} = this.transformedNormalized2PixelScales();
-    const tester = this.lasso.tester(n2pX.invert.bind(n2pX), n2pY.invert.bind(n2pY));
-    if (tester) {
-      this.selectWithTester(tester);
-    } else {
-      this.render(ERenderReason.SELECTION_CHANGED);
-    }
-  }
-
-  private selectWithTester(tester:ITester) {
-    const selection = findByTester(this.tree, tester);
-    this.selection = selection;
-  }
-
-  private onDragEnd() {
-    this.lasso.end(d3event.x, d3event.y);
-    this.render(ERenderReason.SELECTION_CHANGED);
-  }
-
-  private onClick(event:MouseEvent) {
-    if (event.button > 0) {
-      //right button or something like that = reset
-      this.selection = [];
-      return;
-    }
-    const {x, y, clickRadius} = this.getMouseNormalizedPos();
-
-    //find closest data item
-    const closest = findAll(this.tree, x, y, clickRadius);
-    this.selection = closest;
-  }
-
-  private getMouseNormalizedPos(pixelpos = mouse(this.canvas)) {
-    const { n2pX, n2pY, transform} = this.transformedNormalized2PixelScales();
-
-    function rangeRange(s:IScale) {
-      const range = s.range();
-      return Math.abs(range[1] - range[0]);
-    }
-
-    const computeClickRadius = () => {
-      //compute the data domain radius based on xscale and the scaling factor
-      const view = this.options.clickRadius;
-      const viewSize = transform.k * Math.min(rangeRange(this.normalized2pixel.x), rangeRange(this.normalized2pixel.y));
-      const normalizedSize = NORMALIZED_RANGE[1];
-      //tranform from view to data without translation
-      const normalized = view / viewSize * normalizedSize;
-      //const view = this.xscale(base)*transform.k - this.xscale.range()[0]; //skip translation
-      console.log(view, viewSize, transform.k, normalizedSize, normalized);
-      return normalized;
-    };
-
-    const clickRadius = computeClickRadius();
-    return {x: n2pX.invert(pixelpos[0]), y: n2pY.invert(pixelpos[1]), clickRadius};
-  }
-
-  private transformedNormalized2PixelScales() {
-    const transform = zoomTransform(this.canvas);
-    const n2pX = transform.rescaleX(this.normalized2pixel.x);
-    const n2pY = transform.rescaleY(this.normalized2pixel.y);
-    return {transform, n2pX, n2pY};
-  };
-
-  private showTooltip(pos:[number, number]) {
-    //highlight selected item
-    const {x, y, clickRadius} = this.getMouseNormalizedPos(pos);
-    const items = findAll(this.tree, x, y, clickRadius);
-    //TODO highlight item(s) in the plot
-    this.canvas.title = items.map(this.options.tooltip).join('\n');
-  }
-
-  private onMouseMove(event:MouseEvent) {
-    //clear old
-    clearTimeout(this.showTooltipHandle);
-    const pos = mouse(this.canvas);
-    //TODO find a more efficient way or optimize the timing
-    this.showTooltipHandle = setTimeout(this.showTooltip.bind(this, pos), this.options.tooltipDelay);
-  }
-
-  private onMouseLeave(event:MouseEvent) {
-    clearTimeout(this.showTooltipHandle);
-    this.showTooltipHandle = -1;
-  }
-
   private renderAxes(xscale:IScale, yscale:IScale) {
     const left = axisLeft(yscale),
       bottom = axisBottom(xscale),
@@ -425,7 +496,7 @@ export default class Scatterplot<T> {
   }
 
   private renderPoints(ctx:CanvasRenderingContext2D, xscale:IScale, yscale:IScale, isNodeVisible:IBoundsPredicate, useAggregation:IBoundsPredicate, reason = ERenderReason.DIRTY) {
-    const {x, y} = this.options;
+    const {x, y} = this.props;
     var renderer:ISymbolRenderer<T> = null;
 
     //function debugNode(color:string, x0:number, y0:number, x1:number, y1:number) {
@@ -465,15 +536,15 @@ export default class Scatterplot<T> {
 
     ctx.save();
 
-    renderer = this.symbol(ctx, ERenderMode.NORMAL);
+    renderer = this.props.symbol(ctx, ERenderMode.NORMAL);
     rendered = 0;
     this.tree.visit(visitTree);
     console.log('rendered', rendered, 'aggregated', aggregated, 'hidden', hidden, 'total', this.tree.size());
     renderer.done();
 
     //render selected - TODO maybe in own canvas for performance of selection changes
-    renderer = this.symbol(ctx, ERenderMode.SELECTED);
-    this._selection.visit(visitTree);
+    renderer = this.props.symbol(ctx, ERenderMode.SELECTED);
+    this.selectionTree.visit(visitTree);
     renderer.done();
 
     //a dummy path to clear the 'to draw' state
