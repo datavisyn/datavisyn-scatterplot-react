@@ -137,8 +137,12 @@ enum ERenderReason {
   DIRTY,
   SELECTION_CHANGED,
   ZOOMED,
+  PERFORM_SCALE_AND_TRANSLATE,
+  AFTER_SCALE_AND_TRANSLATE,
   PERFORM_TRANSLATE,
-  PERFORM_SCALE
+  AFTER_TRANSLATE,
+  PERFORM_SCALE,
+  AFTER_SCALE
 }
 
 
@@ -165,6 +169,9 @@ export default class Scatterplot<T> {
     symbol: <ISymbol<T>>circleSymbol(),
 
     tooltipDelay: 500,
+
+    zoomDelay: 300,
+
     showTooltip: showTooltip,
 
     onSelectionChanged: ()=>undefined,
@@ -190,8 +197,8 @@ export default class Scatterplot<T> {
 
   private lasso = new Lasso();
 
-  private currentTransform: ZoomTransform = zoomIdentity;
-  private zoomStartTransform: ZoomTransform;
+  private currentTransform:ZoomTransform = zoomIdentity;
+  private zoomStartTransform:ZoomTransform;
   private zommHandle = -1;
 
   constructor(data:T[], private parent:HTMLElement, props?:IScatterplotOptions<T>) {
@@ -385,22 +392,28 @@ export default class Scatterplot<T> {
   private onZoomEnd() {
     const start = this.zoomStartTransform;
     const end = this.currentTransform;
-    if (start.x !== end.x || start.y !== end.y || start.k !== end.k) {
-      this.render(ERenderReason.ZOOMED);
+    const tchanged = (start.x !== end.x || start.y !== end.y);
+    const schanged = (start.k !== end.k);
+    if (tchanged && schanged) {
+      this.render(ERenderReason.AFTER_SCALE_AND_TRANSLATE);
+    } else if (schanged) {
+      this.render(ERenderReason.AFTER_SCALE);
+    } else if (tchanged) {
+      this.render(ERenderReason.AFTER_TRANSLATE);
     }
   }
 
   private onZoom() {
     const evt = <D3ZoomEvent<any,any>>d3event;
-    const new_ :ZoomTransform = evt.transform;
+    const new_:ZoomTransform = evt.transform;
     const old = this.currentTransform;
     this.currentTransform = new_;
     const tchanged = (old.x !== new_.x || old.y !== new_.y);
     const schanged = (old.k !== new_.k);
-    const delta = { x: new_.x - old.x, y: new_.y - old.y, k : new_.k / old.k};
-    if(tchanged && schanged) {
-      this.render(ERenderReason.PERFORM_SCALE, delta); //use scale for now
-    } else if(schanged) {
+    const delta = {x: new_.x - old.x, y: new_.y - old.y, k: new_.k / old.k};
+    if (tchanged && schanged) {
+      this.render(ERenderReason.PERFORM_SCALE_AND_TRANSLATE, delta);
+    } else if (schanged) {
       this.render(ERenderReason.PERFORM_SCALE, delta);
     } else if (tchanged) {
       this.render(ERenderReason.PERFORM_TRANSLATE, delta);
@@ -466,13 +479,13 @@ export default class Scatterplot<T> {
     this.props.showTooltip(this.parent, [], 0, 0);
   }
 
-  render(reason = ERenderReason.DIRTY, transformDelta = { x: 0, y: 0, k: 1}) {
+  render(reason = ERenderReason.DIRTY, transformDelta = {x: 0, y: 0, k: 1}) {
     if (this.checkResize()) {
       //check resize
       return this.resized();
     }
 
-    const c= this.canvasDataLayer,
+    const c = this.canvasDataLayer,
       margin = this.props.margin,
       bounds = {x0: margin.left, y0: margin.top, x1: c.clientWidth - margin.right, y1: c.clientHeight - margin.bottom},
       bounds_width = bounds.x1 - bounds.x0,
@@ -523,7 +536,7 @@ export default class Scatterplot<T> {
       this.lasso.render(ctx);
     };
 
-    const transformData = (x: number, y: number, k: number) => {
+    const transformData = (x:number, y:number, k:number) => {
       //idea copy the data layer to selection layer in a transformed way and swap
       const ctx = this.canvasSelectionLayer.getContext('2d');
       ctx.clearRect(0, 0, c.width, c.height);
@@ -535,11 +548,11 @@ export default class Scatterplot<T> {
       //console.log(x,y,k, bounds.x0, bounds.y0, n2pX(0), n2pY(100), this.currentTransform.x, this.currentTransform.y);
       //ctx.scale(k,k);
       //ctx.translate(0, -bounds_height); //move to visible area
-      ctx.translate(x,y);
+      ctx.translate(x, y);
       //copy just the visible area
       //canvas, clip area, target area
       //see http://www.w3schools.com/tags/canvas_drawimage.asp
-      ctx.drawImage(this.canvasDataLayer, bounds.x0, bounds.y0, bounds_width, bounds_height, bounds.x0, bounds.y0, bounds_width*k, bounds_height*k);
+      ctx.drawImage(this.canvasDataLayer, bounds.x0, bounds.y0, bounds_width, bounds_height, bounds.x0, bounds.y0, bounds_width * k, bounds_height * k);
       ctx.restore();
 
       //swap and update class names
@@ -551,20 +564,41 @@ export default class Scatterplot<T> {
     const renderAxes = this.renderAxes.bind(this, xscale, yscale);
     const renderData = renderCtx.bind(this, false);
 
+    const clearAutoZoomRedraw = () => {
+      if (this.zommHandle >= 0) {
+        //delete auto redraw timer
+        clearTimeout(this.zommHandle);
+        this.zommHandle = -1;
+      }
+    };
+
     console.log(ERenderReason[reason]);
     //render logic
     switch (reason) {
       case ERenderReason.PERFORM_TRANSLATE:
+        clearAutoZoomRedraw();
         transformData(transformDelta.x, transformDelta.y, transformDelta.k);
         renderSelection();
         renderAxes();
+        //redraw everything after a while, i.e stopped moving
+        this.zommHandle = setTimeout(this.render.bind(this, ERenderReason.AFTER_TRANSLATE), this.props.zoomDelay);
         break;
       case ERenderReason.SELECTION_CHANGED:
         renderSelection();
         break;
+      case ERenderReason.AFTER_TRANSLATE:
+        //just data needed after translation
+        clearAutoZoomRedraw();
+        renderData();
+        break;
+      case ERenderReason.AFTER_SCALE_AND_TRANSLATE:
+      case ERenderReason.AFTER_SCALE:
+        //nothing current approach is to draw all
+        break;
       case ERenderReason.PERFORM_SCALE:
-      case ERenderReason.ZOOMED:
+      case ERenderReason.PERFORM_SCALE_AND_TRANSLATE:
       default:
+        clearAutoZoomRedraw();
         renderData();
         renderAxes();
         renderSelection();
@@ -579,7 +613,7 @@ export default class Scatterplot<T> {
     $parent.select('svg:last-of-type g').call(bottom);
   }
 
-  private renderTree(ctx:CanvasRenderingContext2D, tree: Quadtree<T>, renderer:ISymbolRenderer<T>, xscale:IScale, yscale:IScale, isNodeVisible:IBoundsPredicate, useAggregation:IBoundsPredicate, debug = false) {
+  private renderTree(ctx:CanvasRenderingContext2D, tree:Quadtree<T>, renderer:ISymbolRenderer<T>, xscale:IScale, yscale:IScale, isNodeVisible:IBoundsPredicate, useAggregation:IBoundsPredicate, debug = false) {
     const {x, y} = this.props;
 
     //function debugNode(color:string, x0:number, y0:number, x1:number, y1:number) {
@@ -601,14 +635,14 @@ export default class Scatterplot<T> {
 
     function visitTree(node:QuadtreeInternalNode<T> | QuadtreeLeaf<T>, x0:number, y0:number, x1:number, y1:number) {
       if (!isNodeVisible(x0, y0, x1, y1)) {
-        hidden += debug ? getTreeSize(node): 0;
+        hidden += debug ? getTreeSize(node) : 0;
         return ABORT_TRAVERSAL;
       }
       if (useAggregation(x0, y0, x1, y1)) {
         let d = getFirstLeaf(node);
         //console.log('aggregate', getTreeSize(node));
         rendered++;
-        aggregated += debug ? (getTreeSize(node) - 1): 0;
+        aggregated += debug ? (getTreeSize(node) - 1) : 0;
         renderer.render(xscale(x(d)), yscale(y(d)), d);
         return ABORT_TRAVERSAL;
       }
