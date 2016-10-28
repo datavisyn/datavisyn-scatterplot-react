@@ -3,33 +3,21 @@
 /*eslint no-console: 0*/
 'use strict';
 
-import CanvasScatterplot from '../src';
+// Uncomment the following lines to use the react test utilities
+// import React from 'react/addons';
+// const TestUtils = React.addons.TestUtils;
+import createComponent from './helpers/shallowRenderHelper';
 
-function randomData(count = 100) {
-  var r = [];
-  for(let i = 0; i < count; ++i) {
-    r.push({ x: Math.random(), y: Math.random()});
-  }
-  return r;
-}
+import CanvasScatterplotComponent from '../../src/react';
 
-function setupCanvas(width = 100, height = 100) {
-  const c = document.createElement('canvas');
-  c.width = width;
-  c.height = height;
-  return c;
-}
-
-describe('CanvasScatterplot', () => {
-  const data = randomData(100);
-  var cs = null;
+describe('CanvasScatterplotComponent', () => {
+  let m;
 
   beforeEach(() => {
-    var canvas = setupCanvas(100, 100);
-    cs = new CanvasScatterplot(data, canvas);
+    m = createComponent(CanvasScatterplotComponent);
   });
 
-  it('dummy', () => {
-    expect(cs._canvas).to.be.defined();
+  it('should have its component name as default className', () => {
+    //expect(m.props.className).to.equal('index');
   });
 });

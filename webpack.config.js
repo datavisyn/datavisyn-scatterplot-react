@@ -12,8 +12,7 @@ module.exports = function (env) {
   const isProduction = env === 'prod';
   const base = {
     entry: {
-      vanilla: [path.resolve(__dirname, 'src/index.ts')],
-      react: [path.resolve(__dirname, 'src/react/index.tsx')]
+      scatterplot: [path.resolve(__dirname, 'src/index.tsx')]
     },
     output: {
       path: path.resolve(__dirname, 'build'),

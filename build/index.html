@@ -2,65 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Scatterplot Test</title>
+  <title>React Scatterplot Test</title>
 
+  <style>
+    .datavisyn-scatterplot {
+      width: 520px;
+      height: 500px;
+    }
+  </style>
 </head>
 <body>
 <h1>
-  Scatterplot test
+  React Scatterplot test
 </h1>
-<label>Number of Points:
-    <input type="number" step="1000" value="10000">
-  </label>
+
 <section>
-<div style="width: 520px; height: 500px"></div>
 </section>
-<section>
-<pre>
-  Notes:
-   * drag/zoom as usual
-   * tooltip after a while
-   * lasso selection using ctrl/alt key
-   * single selection should work
-   * debug output with rendering information
-   * build with Typescript + Webpack2
-</pre>
-</section>
-<script src="vanilla.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.3.2/react.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.3.2/react-dom.js"></script>
+<script src="./react.js"></script>
 <script>
-  (function () {
-    function rebuild(count) {
-      var data = [];
-      console.time('gen');
-      for (var i = 0; i < count; ++i) {
-        //data.push({x: 100*i/count, y: 100*(count-i)/count});
-        data.push({x: Math.random()*100, y: Math.random()*100});
-      }
-      console.timeEnd('gen');
-      var div = document.querySelector('div');
-      div.innerHTML = ''; //clear existing stuff
-
-      var s = new datavisyn.scatterplot.default(data, div);
-      //hack render to have information
-      var bak = s.render.bind(s);
-      s.render = function() {
-        console.time('render');
-        bak.apply(s, [].slice.call(arguments));
-        console.timeEnd('render');
-      };
-      s.render();
+  (function() {
+    var count = 10000;
+    var data = [];
+    console.time('gen');
+    for (var i = 0; i < count; ++i) {
+      //data.push({x: 100*i/count, y: 100*(count-i)/count});
+      data.push({x: Math.random() * 100, y: Math.random() * 100});
     }
+    console.timeEnd('gen');
 
-    document.querySelector('input').onchange = function() {
-      rebuild(+this.value);
-    };
-    rebuild(10000);
-  })();
-
-  //React.render(
-  //  <MyComponent>Body</MyComponent>,
-  //  body
-//);
+    ReactDOM.render(
+      React.createElement(datavisyn.scatterplot.default, {
+        data: data
+      }),
+      document.querySelector('section')
+    );
+  })()
 </script>
 </body>
 </html>

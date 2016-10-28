@@ -1,5 +1,5 @@
 {
-  "name": "canvas-scatterplot",
+  "name": "datavisyn-scatterplot-react",
   "version": "0.0.1",
   "description": "a canvas based scatterplot implementation",
   "homepage": "https://phovea.caleydo.org",
@@ -16,16 +16,17 @@
   ],
   "license": "BSD-3-Clause",
   "bugs": {
-    "url": "https://github.com/sgratzl/canvas_scatterplot/issues"
+    "url": "https://github.com/sgratzl/canvas-scatterplot-react/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sgratzl/canvas_scatterplot.git"
+    "url": "https://github.com/sgratzl/canvas-scatterplot-react.git"
   },
-  "main": "build/vanilla.js",
+  "main": "build/scatterplot.js",
   "files": [
     "src",
-    "build"
+    "build",
+    "typings"
   ],
   "scripts": {
     "start": "webpack-dev-server --inline --hot",
@@ -41,14 +42,7 @@
     "test:watch": "karma start --autoWatch=true --singleRun=false"
   },
   "devDependencies": {
-    "@types/d3-array": "^1.0.5",
-    "@types/d3-axis": "^1.0.5",
-    "@types/d3-drag": "^1.0.5",
-    "@types/d3-polygon": "^1.0.4",
-    "@types/d3-quadtree": "^1.0.4",
-    "@types/d3-scale": "^1.0.4",
-    "@types/d3-shape": "^1.0.5",
-    "@types/d3-zoom": "^1.0.5",
+    "datavisyn-scatterplot": "github:sgratzl/canvas-scatterplot",
     "@types/react": "^0.14.42",
     "@types/react-dom": "^0.14.18",
     "awesome-typescript-loader": "^2.2.4",
@@ -83,11 +77,8 @@
     "webpack": "^2.1.0-beta.25",
     "webpack-dev-server": "^2.1.0-beta.9"
   },
-  "optionalDependencies": {
+  "dependencies": {
     "react": "^15.0.0",
     "react-dom": "^15.0.0"
-  },
-  "dependencies": {
-
   }
 }
