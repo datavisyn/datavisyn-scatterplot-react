@@ -1,6 +1,13 @@
 const webpack = require('webpack');
 const path = require('path');
 
+const pkg = require('./package.json');
+const year = (new Date()).getFullYear();
+const banner = '/*! ' + (pkg.title || pkg.name) + ' - v' + pkg.version + ' - ' + year + '\n' +
+  (pkg.homepage ? '* ' + pkg.homepage + '\n' : '') +
+  '* Copyright (c) ' + year + ' ' + pkg.author.name + ';' +
+  ' Licensed ' + pkg.license + '*/\n';
+
 module.exports = function (env) {
   const isProduction = env === 'prod';
   const base = {
@@ -20,6 +27,9 @@ module.exports = function (env) {
         test: /\.tsx?$/,
         loader: 'awesome-typescript-loader',
         include: path.resolve(__dirname, 'src')
+      }, {
+        test: /\.scss$/,
+        loader: 'style!css!sass'
       }]
     },
     resolve: {
@@ -30,7 +40,13 @@ module.exports = function (env) {
     externals: {
       react: 'React',
       'react-dom': 'ReactDOM'
-    }, plugins: [],
+    },
+    plugins: [
+      new webpack.BannerPlugin({
+        banner: banner,
+        raw: true
+      })
+    ],
     devServer: {
       contentBase: path.resolve(__dirname, 'build')
     },
