@@ -4,7 +4,7 @@
  * created: 2016-10-28T11:19:52.797Z
  */
 
-import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye} from 'd3-shape';
+import {symbolCircle, symbolCross, symbolDiamond, symbolSquare, symbolStar, symbolTriangle, symbolWye, SymbolType} from 'd3-shape';
 
 /**
  * a symbol renderer renderes a bunch of data points using `render` at the end `done` will be called

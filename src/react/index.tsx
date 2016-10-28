@@ -31,8 +31,6 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
   private plot: Impl<T> = null;
   private parent: HTMLDivElement = null;
 
-  private updatedByMe = false;
-
   constructor(props: IScatterplotProps<T>, context?: any) {
     super(props, context);
 
@@ -46,7 +44,6 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
     var clone = merge({}, this.props);
     this.plot = new Impl(this.props.data, this.parent, merge(clone, {
       onSelectionChanged: () => {
-        this.updatedByMe = true;
         //update my state and notify
         this.state.selection = this.plot.selection;
         this.props.onSelectionChanged();
@@ -56,10 +53,6 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
   }
 
   shouldComponentUpdate(nextProps: IScatterplotProps<T>, nextState: IScatterplotState<T>) {
-    //i changed the state to reflect the changes in the impl selection
-    if (this.updatedByMe) {
-      return false;
-    }
     //check selection changes
     const new_ = this.state.selection;
     const old = nextState.selection;
@@ -70,7 +63,6 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
   };
 
   componentDidUpdate() {
-    this.updatedByMe = false;
     this.plot.render();
   }
 

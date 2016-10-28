@@ -133,7 +133,7 @@ const NORMALIZED_RANGE = [0, 100];
 /**
  * reasons why a new render pass is needed
  */
-enum ERenderReason {
+export enum ERenderReason {
   DIRTY,
   SELECTION_CHANGED,
   ZOOMED,

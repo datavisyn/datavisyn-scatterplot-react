@@ -7,7 +7,7 @@
 import {line as d3line, curveLinearClosed} from 'd3-shape';
 import {polygonHull, polygonContains} from 'd3-polygon';
 import {extent} from 'd3-array';
-import {hasOverlap} from './quadtree';
+import {hasOverlap, ITester} from './quadtree';
 
 declare type IPoint = [number, number];
 
@@ -32,7 +32,7 @@ export default class Lasso {
     this.points = [];
   }
 
-  tester(p2nX:(p:number)=>number, p2nY:(p:number)=>number) {
+  tester(p2nX:(p:number)=>number, p2nY:(p:number)=>number): ITester {
     if (this.points.length < 3) {
       return null;
     }
