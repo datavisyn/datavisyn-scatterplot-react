@@ -12,57 +12,62 @@ export {scale, symbol} from 'datavisyn-scatterplot/src';
 /**
  * all scatterplot options and the data
  */
-export interface IScatterplotProps<T> extends IScatterplotOptions<T> {
+export interface IScatterplotProps<T> {
   data: T[];
+  selection?: T[];
+
+  options?: IScatterplotOptions<T>;
+
+  onSelectionChanged?(selection: T[]);
 }
 
-/**
- * just the selection
- */
-export interface IScatterplotState<T> {
-  selection: T[];
+function deepEqual<T>(a: T[], b: T[]) {
+  if (a === b) {
+    return true;
+  }
+  if (a != b) {
+    return false;
+  }
+  return a.every((ai,i) => ai === b[i]);
 }
 
 /**
  * scatterplot component wrapping the scatterplot implementation
  */
-export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>,IScatterplotState<T>> {
+export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>,{}> {
   private plot: Impl<T> = null;
   private parent: HTMLDivElement = null;
 
   constructor(props: IScatterplotProps<T>, context?: any) {
     super(props, context);
-
-    this.state = {
-      selection: [] as T[]
-    };
   }
 
   componentDidMount() {
     //create impl
-    var clone = merge({}, this.props);
+    var clone = merge({}, this.props.options);
     this.plot = new Impl(this.props.data, this.parent, merge(clone, {
-      onSelectionChanged: () => {
-        //update my state and notify
-        this.state.selection = this.plot.selection;
-        this.props.onSelectionChanged();
-      }
+      onSelectionChanged: this.onSelectionChanged.bind(this)
     }));
+    this.plot.selection = this.props.selection;
     this.plot.render();
   }
 
-  shouldComponentUpdate(nextProps: IScatterplotProps<T>, nextState: IScatterplotState<T>) {
-    //check selection changes
-    const new_ = this.state.selection;
-    const old = nextState.selection;
-    if (new_.length !== old.length) {
-      return true;
+  shouldComponentUpdate?(nextProps: IScatterplotProps<T>) {
+    return !deepEqual(this.props.selection, nextProps.selection);
+  }
+
+  private onSelectionChanged() {
+    //update my state and notify
+    const s = this.plot.selection;
+    if (this.props.onSelectionChanged) {
+      this.props.onSelectionChanged(s);
     }
-    return new_.some((d,i) => d !== old[i]);
-  };
+  }
+
+
 
   componentDidUpdate() {
-    this.plot.render();
+    this.plot.selection = this.props.selection;
   }
 
   render() {
@@ -75,6 +80,8 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
 
 (Scatterplot as any).propTypes = {
   data: React.PropTypes.array.isRequired,
+  selection: React.PropTypes.any,
+  options: React.PropTypes.object,
   onSelectionChanged: React.PropTypes.func
 };
 
