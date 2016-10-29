@@ -25,7 +25,7 @@ function deepEqual<T>(a: T[], b: T[]) {
   if (a === b) {
     return true;
   }
-  if (a != b) {
+  if (a.length !== b.length) {
     return false;
   }
   return a.every((ai,i) => ai === b[i]);
