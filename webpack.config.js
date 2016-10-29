@@ -44,28 +44,17 @@ module.exports = function (env) {
       new webpack.BannerPlugin({
         banner: banner,
         raw: true
-      })
+      }),
+      new webpack.DefinePlugin({
+       'process.env': {
+         'NODE_ENV': JSON.stringify(isProduction ? 'production': 'development')
+       }
+   })
     ],
     devServer: {
       contentBase: path.resolve(__dirname, 'build')
     },
-    devtool: isProduction ? 'hidden-source-map' : 'source-map'
+    devtool: isProduction ? 'cheap-module-source-map' : 'source-map'
   };
-  if (isProduction) {
-    base.plugins.push(
-      new webpack.LoaderOptionsPlugin({
-        minimize: true,
-        debug: false
-      }),
-      new webpack.optimize.UglifyJsPlugin({
-        compress: {
-          warnings: false
-        },
-        output: {
-          comments: false
-        },
-        sourceMap: false
-      }));
-  }
   return base;
 };
