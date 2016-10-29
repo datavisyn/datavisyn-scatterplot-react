@@ -28,13 +28,25 @@ function deepEqual<T>(a: T[], b: T[]) {
   if (a.length !== b.length) {
     return false;
   }
-  return a.every((ai,i) => ai === b[i]);
+  return a.every((ai, i) => ai === b[i]);
 }
 
 /**
  * scatterplot component wrapping the scatterplot implementation
  */
 export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>,{}> {
+  static propTypes = {
+    data: React.PropTypes.array.isRequired,
+    selection: React.PropTypes.any,
+    options: React.PropTypes.object,
+    onSelectionChanged: React.PropTypes.func
+  };
+
+  static defaultProps = {
+    data: [],
+    onSelectionChanged: ()=>undefined
+  };
+
   private plot: Impl<T> = null;
   private parent: HTMLDivElement = null;
 
@@ -65,7 +77,6 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
   }
 
 
-
   componentDidUpdate() {
     this.plot.selection = this.props.selection;
   }
@@ -77,15 +88,3 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
     );
   }
 }
-
-(Scatterplot as any).propTypes = {
-  data: React.PropTypes.array.isRequired,
-  selection: React.PropTypes.any,
-  options: React.PropTypes.object,
-  onSelectionChanged: React.PropTypes.func
-};
-
-(Scatterplot as any).defaultProps = {
-  data: [],
-  onSelectionChanged: ()=>undefined
-};
