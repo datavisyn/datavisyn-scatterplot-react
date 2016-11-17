@@ -23,10 +23,11 @@
     "url": "https://github.com/datavisyn/datavisyn-scatterplot-react.git"
   },
   "main": "build/scatterplot.js",
+  "typings": "typings/index.d.ts",
   "files": [
     "src",
     "build",
-    "typings"
+	"typings"
   ],
   "scripts": {
     "compile": "tsc",
