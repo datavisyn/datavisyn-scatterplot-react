@@ -9,6 +9,8 @@ import * as React from 'react';
 import merge from 'datavisyn-scatterplot/src/merge';
 import Impl, {IScatterplotOptions} from 'datavisyn-scatterplot/src';
 export {scale, symbol} from 'datavisyn-scatterplot/src';
+export {default as QQPlot, IQQPlotProps} from './qqplot';
+
 /**
  * all scatterplot options and the data
  */
