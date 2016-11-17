@@ -16,11 +16,11 @@
   ],
   "license": "BSD-3-Clause",
   "bugs": {
-    "url": "https://github.com/sgratzl/canvas-scatterplot-react/issues"
+    "url": "https://github.com/datavisyn/datavisyn-scatterplot-react/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sgratzl/canvas-scatterplot-react.git"
+    "url": "https://github.com/datavisyn/datavisyn-scatterplot-react.git"
   },
   "main": "build/scatterplot.js",
   "files": [
@@ -29,36 +29,31 @@
     "typings"
   ],
   "scripts": {
-    "start": "webpack-dev-server --inline --hot",
     "compile": "tsc",
-    "lint": "tslint -c tslint.json src/**.ts src/**.tsx test/**.ts",
+    "lint": "tslint -c tslint.json src/**.ts test/**.ts",
     "docs": "typedoc --options typedoc.json src/**.ts",
     "prebuild": "npm run test",
     "build": "webpack -p --env prod",
+    "build:dev": "webpack",
+    "watch": "webpack --watch",
+    "start": "webpack-dev-server --inline --hot",
     "release:major": "npm version major && npm publish && git push --follow-tags",
     "release:minor": "npm version minor && npm publish && git push --follow-tags",
     "release:patch": "npm version patch && npm publish && git push --follow-tags",
     "pretest": "npm run compile",
     "test": "karma start",
     "posttest": "npm run lint",
-    "test:watch": "karma start --autoWatch=true --singleRun=false"
+    "test:watch": "karma start --autoWatch=true --singleRun=false",
+    "predist": "npm run build",
+    "dist": "mkdirp dist && cd build && tar cvzf ../dist/datavisyn-scatterplot-react.tar.gz *"
   },
   "devDependencies": {
-    "datavisyn-scatterplot": "github:sgratzl/datavisyn-scatterplot",
+    "datavisyn-scatterplot": "github:datavisyn/datavisyn-scatterplot",
     "@types/react": "^0.14.42",
     "@types/react-dom": "^0.14.18",
     "awesome-typescript-loader": "^2.2.4",
     "chai": "^3.2.0",
     "css-loader": "^0.25.0",
-    "d3-array": "^1.0.1",
-    "d3-axis": "^1.0.3",
-    "d3-drag": "^1.0.1",
-    "d3-polygon": "^1.0.1",
-    "d3-quadtree": "^1.0.1",
-    "d3-scale": "^1.0.3",
-    "d3-selection": "^1.0.2",
-    "d3-shape": "^1.0.3",
-    "d3-zoom": "^1.0.3",
     "isparta-loader": "^2.0.0",
     "karma": "^1.3.0",
     "karma-chai": "^0.1.0",
