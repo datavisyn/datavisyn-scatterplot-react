@@ -89,10 +89,10 @@ export default class QQPlot extends React.Component<IQQPlotProps,{}> {
 
   componentDidMount() {
     //create impl
+    const data = computeData(this.props.a, this.props.b);
     var clone = merge({
       isSelectEvent: null
     }, this.props.options);
-    const data = computeData(this.props.a, this.props.b);
     this.plot = new Impl<XY>(data, this.parent, clone);
     this.plot.render();
     console.log('b');
@@ -101,8 +101,7 @@ export default class QQPlot extends React.Component<IQQPlotProps,{}> {
   componentDidUpdate() {
     //new data recreate
     console.log('ads');
-    const data = computeData(this.props.a, this.props.b);
-    this.plot.data = data;
+    this.plot.data = computeData(this.props.a, this.props.b);
   }
 
   render() {
