@@ -36,13 +36,15 @@ export default class LocusZoom<T> extends React.Component<ILocusZoomProps<T>,{}>
 
   render() {
     const {data, selection, onSelectionChanged} = this.props;
-    const options = merge(this.props.options, {
-      scaleExtent: [1, 100],
-      scale: EScaleAxes.x,
-      xlabel: this.props.chromosome,
-      ylabel: 'p-value',
-      yscale: scale.scaleLog().domain([1, 0.0000001])
-    });
-    return <Scatterplot data={data} selection={selection} onSelectionChanged={onSelectionChanged} options={options}/>
+    const options = merge(this.props.options,);
+    return React.createElement(Scatterplot, merge({
+      options: {
+        scaleExtent: [1, 100],
+        scale: EScaleAxes.x,
+        xlabel: this.props.chromosome,
+        ylabel: 'p-value',
+        yscale: scale.scaleLog().domain([1, 0.0000001])
+      }
+    },this.props));
   }
 }
