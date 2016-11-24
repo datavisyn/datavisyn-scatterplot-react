@@ -49,9 +49,6 @@
     "dist": "mkdirp dist && cd build && tar cvzf ../dist/datavisyn-scatterplot-react.tar.gz *"
   },
   "devDependencies": {
-    "datavisyn-scatterplot": "github:datavisyn/datavisyn-scatterplot",
-    "@types/react": "^0.14.42",
-    "@types/react-dom": "^0.14.18",
     "awesome-typescript-loader": "^2.2.4",
     "chai": "^3.2.0",
     "css-loader": "^0.25.0",
@@ -76,6 +73,9 @@
     "webpack-dev-server": "^2.1.0-beta.9"
   },
   "dependencies": {
+    "datavisyn-scatterplot": "github:datavisyn/datavisyn-scatterplot",
+    "@types/react": "^0.14.42",
+    "@types/react-dom": "^0.14.18",
     "react": "^15.0.0",
     "react-dom": "^15.0.0"
   }
