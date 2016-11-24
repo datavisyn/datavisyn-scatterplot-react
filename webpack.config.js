@@ -24,8 +24,7 @@ module.exports = function (env) {
     module: {
       loaders: [{
         test: /\.tsx?$/,
-        loader: 'awesome-typescript-loader',
-        include: path.resolve(__dirname, 'src')
+        loader: 'awesome-typescript-loader'
       }, {
         test: /\.scss$/,
         loader: 'style-loader!css-loader!sass-loader'
