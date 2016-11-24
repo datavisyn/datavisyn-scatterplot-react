@@ -7,9 +7,9 @@
 
 import * as React from 'react';
 import merge from 'datavisyn-scatterplot/src/merge';
-import {scale, IScatterplotOptions, EScaleAxes} from 'datavisyn-scatterplot/src';
-import Scatterplot, {IScatterplotProps} from './index';
+import {EScaleAxes} from 'datavisyn-scatterplot/src';
 export {IScatterplotOptions} from 'datavisyn-scatterplot/src';
+import Scatterplot, {IScatterplotProps} from './index';
 
 export interface ILocusZoomProps<T> extends IScatterplotProps<T> {
   chromosome?: string;
@@ -35,8 +35,6 @@ export default class LocusZoom<T> extends React.Component<ILocusZoomProps<T>,{}>
   }
 
   render() {
-    const {data, selection, onSelectionChanged} = this.props;
-    const options = merge(this.props.options,);
     return React.createElement(Scatterplot, merge({
       options: {
         scale: EScaleAxes.x,
