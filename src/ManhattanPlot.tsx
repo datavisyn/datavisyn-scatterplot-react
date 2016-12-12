@@ -20,21 +20,17 @@ export interface IManhattanPlotProps {
     right: number;
     bottom: number;
   };
+
+  onSignificanceChange?(geqSignificance: number);
+  onWindowChange?(fromChromosome: string, fromLocation: number, toChromosome: string, toLocation: number);
 }
 
 interface IChromosome {
   name: string;
   start: number;
   end: number;
+  shift: number;
 }
-
-function pvalue2sig(pvalue) {
-  return -Math.log(pvalue);
-}
-function sig2pvalue(sig) {
-  return Math.exp(-sig);
-}
-
 
 export default class ManhattanPlotReact extends React.Component<IManhattanPlotProps,{}> {
   static propTypes = {
@@ -80,6 +76,14 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
       });
   }
 
+  private toRelative(absloc: number) {
+    const c = this.chromosomes.find((d) => d.start <= absloc && d.end >= absloc);
+    return {
+      name: c.name,
+      location: absloc - c.shift
+    };
+  }
+
   componentDidUpdate() {
     const $parent = select(this.parent);
     $parent.select('g.datavisyn-manhattanplot-xaxis').call(this.xaxis);
@@ -95,18 +99,26 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
       $line.attr('y2', y);
       $line_area.attr('y', y).attr('height', (this.props.height-margin.bottom-y));
       const sig = this.yscale.invert(y);
-      console.log('significance', sig, sig2pvalue(sig));
-      // TODO propagate
+      if (this.props.onSignificanceChange) {
+        this.props.onSignificanceChange(sig);
+      }
     })).attr('y1', sigline)
       .attr('y2', sigline);
     $line_area.attr('y', sigline).attr('height', (this.props.height-margin.bottom-sigline));
 
     $parent.select('g.datavisyn-manhattanplot-brush').call(brushX().on('brush', () => {
       const s : [number, number] = (d3event as D3BrushEvent<any>).selection as any;
+
       if (s) {
-        console.log('window', this.xscale.invert(s[0]), this.xscale.invert(s[1]));
+        if (this.props.onWindowChange) {
+          let from = this.toRelative(this.xscale.invert(s[0]));
+          let to = this.toRelative(this.xscale.invert(s[1]));
+          this.props.onWindowChange(from.name, from.location, to.name, to.location);
+        }
       } else {
-        console.log('none');
+        if (this.props.onWindowChange) {
+          this.props.onWindowChange(null, null, null, null);
+        }
       }
     }).extent([[margin.left, margin.top], [this.props.width - margin.right, this.props.height - margin.bottom]]));
   }
