@@ -43,7 +43,7 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
   };
 
   static defaultProps = {
-    gegSignificance: 0.1,
+    gegSignificance: 1,
     width: 1000,
     height: 400,
     margin: {
@@ -67,24 +67,26 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
   }
 
   componentDidMount() {
-    (self as any).fetch(`${this.props.serverUrl}/manhattan_meta?geqSignificance=${this.props.geqSignificance}`, {
-      // TODO options
-    }).then((response) => response.json())
+    (self as any).fetch(`${this.props.serverUrl}/manhattan_meta?geqSignificance=${this.props.geqSignificance}`).then((response) => response.json())
       .then((metadata: any) => {
         this.chromosomes = metadata.chromosomes;
         this.xscale.domain(metadata.xlim);
         this.yscale.domain(metadata.ylim);
-        this.update();
+        this.xaxis.tickValues(this.chromosomes.map((d) => Math.floor((d.start+d.end)/2)));
+        this.xaxis.tickFormat((center: number) => {
+          return this.chromosomes.find((d) => center >= d.start && center <= d.end).name;
+        });
+        this.forceUpdate();
       });
   }
 
-  private update() {
+  componentDidUpdate() {
     const $parent = select(this.parent);
     $parent.select('g.datavisyn-manhattanplot-xaxis').call(this.xaxis);
     $parent.select('g.datavisyn-manhattanplot-yaxis').call(this.yaxis);
     const margin = this.props.margin;
 
-    const sigline = this.yscale(pvalue2sig(this.props.geqSignificance));
+    const sigline = this.yscale(this.props.geqSignificance);
     const $line_area = $parent.select('rect.datavisyn-manhattanplot-significance-hidden');
     const $line = $parent.select('line.datavisyn-manhattanplot-significance').call(drag().on('drag', () => {
       const y = Math.max(margin.top, Math.min(this.props.height-margin.bottom,d3event.y));
@@ -125,7 +127,7 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
       </g>
       <line x1='0' x2='100%' className='datavisyn-manhattanplot-significance' style={{stroke: 'black', strokeWidth: 3, cursor: 'ns-resize'}}/>
 
-      <g className='datavisyn-manhattanplot-brush'></g>
+      <g className='datavisyn-manhattanplot-brush' />
     </svg>;
   }
 }
