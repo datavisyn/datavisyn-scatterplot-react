@@ -12,11 +12,11 @@ module.exports = function (env) {
   const isProduction = env === 'prod';
   const base = {
     entry: {
-      scatterplot: [path.resolve(__dirname, 'src/index.tsx')]
+      scatterplot: path.resolve(__dirname, 'src/index.tsx')
     },
     output: {
       path: path.resolve(__dirname, 'build'),
-      publicPath: './',
+      publicPath: '',
       filename: '[name].js',
       libraryTarget: 'umd',
       library: ['datavisyn', 'scatterplot']
@@ -45,13 +45,19 @@ module.exports = function (env) {
         raw: true
       }),
       new webpack.DefinePlugin({
-       'process.env': {
-         'NODE_ENV': JSON.stringify(isProduction ? 'production': 'development')
-       }
-   })
+        'process.env': {
+          'NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development')
+        }
+      })
     ],
     devServer: {
-      contentBase: path.resolve(__dirname, 'build')
+      contentBase: path.resolve(__dirname, 'build'),
+      proxy: {
+        '/manhattan*': {
+          target: 'http://localhost:9000',
+          secure: false
+        }
+      }
     },
     devtool: isProduction ? 'cheap-module-source-map' : 'source-map'
   };
