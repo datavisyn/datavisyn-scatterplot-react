@@ -116,8 +116,8 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
 
       if (s) {
         if (this.props.onWindowChanged) {
-          let from = this.toRelative(this.xscale.invert(s[0]));
-          let to = this.toRelative(this.xscale.invert(s[1]));
+          let from = this.toRelative(Math.floor(this.xscale.invert(s[0])));
+          let to = this.toRelative(Math.floor(this.xscale.invert(s[1])));
           this.props.onWindowChanged(from.name, from.location, to.name, to.location);
         }
       } else {

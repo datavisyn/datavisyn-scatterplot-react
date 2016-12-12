@@ -23,23 +23,11 @@
 <script src="scatterplot.js"></script>
 <script>
   (function() {
-    var count = 10000;
-    var data = [];
-    var a = [], b = [];
-    console.time('gen');
-    for (var i = 0; i < count; ++i) {
-      //data.push({x: 100*i/count, y: 100*(count-i)/count});
-      data.push({x: Math.random() * 100, y: Math.random() * 100});
-      a.push(Math.random()*100);
-      b.push(Math.random()*100);
-    }
-    console.timeEnd('gen');
-
     ReactDOM.render(
       React.createElement('div', {},
        React.createElement(datavisyn.scatterplot.ManhattanPlot, {
           serverUrl: '.',
-          geqSignificance: 0.05
+          geqSignificance: 5
         })
       ),
       document.querySelector('section')

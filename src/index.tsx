@@ -67,9 +67,9 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
     this.plot.render();
   }
 
-  shouldComponentUpdate?(nextProps: IScatterplotProps<T>) {
-    return !deepEqual(this.props.selection, nextProps.selection);
-  }
+  //shouldComponentUpdate?(nextProps: IScatterplotProps<T>) {
+  //  return !deepEqual(this.props.selection, nextProps.selection);
+  //}
 
   private onSelectionChanged() {
     //update my state and notify
@@ -79,14 +79,13 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
     }
   }
 
-
   componentDidUpdate() {
     this.plot.selection = this.props.selection;
   }
 
   render() {
     return (
-      <div ref={(div) => this.parent = div}>
+      <div ref={(div) => this.parent = div} style={{width: '500px'}}>
       </div>
     );
   }
