@@ -84,7 +84,7 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
     };
 
     return <svg ref={(div) => this.parent = div as SVGSVGElement} width={this.props.width} height={this.props.height}>
-      <image x={margin.left} y={margin.top} width={image.width} height={image.height}
+      <image x={margin.left} y={margin.top} width={image.width} height={image.height} preserveAspectRatio='none'
              xlinkHref={`${this.props.serverUrl}/manhattan?plain=true&geqSignificance=${this.props.geqSignificance}&width=${image.width}&height=${image.height}`}>
 
       </image>
