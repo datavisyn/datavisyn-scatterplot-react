@@ -21,8 +21,8 @@ export interface IManhattanPlotProps {
     bottom: number;
   };
 
-  onSignificanceChange?(geqSignificance: number);
-  onWindowChange?(fromChromosome: string, fromLocation: number, toChromosome: string, toLocation: number);
+  onSignificanceChanged?(geqSignificance: number);
+  onWindowChanged?(fromChromosome: string, fromLocation: number, toChromosome: string, toLocation: number);
 }
 
 interface IChromosome {
@@ -35,11 +35,16 @@ interface IChromosome {
 export default class ManhattanPlotReact extends React.Component<IManhattanPlotProps,{}> {
   static propTypes = {
     serverUrl: React.PropTypes.string.isRequired,
-    geqSignificance: React.PropTypes.number
+    geqSignificance: React.PropTypes.number,
+    width: React.PropTypes.number,
+    height: React.PropTypes.number,
+    margin: React.PropTypes.any,
+    onSignificanceChange: React.PropTypes.func,
+    onWindowChange: React.PropTypes.func,
   };
 
   static defaultProps = {
-    gegSignificance: 1,
+    geqSignificance: 1,
     width: 1000,
     height: 400,
     margin: {
@@ -99,8 +104,8 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
       $line.attr('y2', y);
       $line_area.attr('y', y).attr('height', (this.props.height-margin.bottom-y));
       const sig = this.yscale.invert(y);
-      if (this.props.onSignificanceChange) {
-        this.props.onSignificanceChange(sig);
+      if (this.props.onSignificanceChanged) {
+        this.props.onSignificanceChanged(sig);
       }
     })).attr('y1', sigline)
       .attr('y2', sigline);
@@ -110,14 +115,14 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
       const s : [number, number] = (d3event as D3BrushEvent<any>).selection as any;
 
       if (s) {
-        if (this.props.onWindowChange) {
+        if (this.props.onWindowChanged) {
           let from = this.toRelative(this.xscale.invert(s[0]));
           let to = this.toRelative(this.xscale.invert(s[1]));
-          this.props.onWindowChange(from.name, from.location, to.name, to.location);
+          this.props.onWindowChanged(from.name, from.location, to.name, to.location);
         }
       } else {
-        if (this.props.onWindowChange) {
-          this.props.onWindowChange(null, null, null, null);
+        if (this.props.onWindowChanged) {
+          this.props.onWindowChanged(null, null, null, null);
         }
       }
     }).extent([[margin.left, margin.top], [this.props.width - margin.right, this.props.height - margin.bottom]]));
