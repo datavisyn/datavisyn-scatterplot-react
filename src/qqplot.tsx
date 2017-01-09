@@ -61,10 +61,10 @@ function ppoints(n: number|number[], a?: number) {
  * @returns {Array}
  */
 function computeData(a: number[], b: number[]): XY[] {
-  const a_sorted = a.slice().sort(byNumber);
-  const b_sorted = b.slice().sort(byNumber);
-  return ppoints(Math.min(a_sorted.length, b_sorted.length)).map((q) => {
-    return new XY(quantile(a_sorted, q), quantile(b_sorted, q), q);
+  const aSorted = a.slice().sort(byNumber);
+  const bSorted = b.slice().sort(byNumber);
+  return ppoints(Math.min(aSorted.length, bSorted.length)).map((q) => {
+    return new XY(quantile(aSorted, q), quantile(bSorted, q), q);
   });
 }
 
@@ -90,7 +90,7 @@ export default class QQPlot extends React.Component<IQQPlotProps,{}> {
   componentDidMount() {
     //create impl
     const data = computeData(this.props.a, this.props.b);
-    var clone = merge({
+    const clone = merge({
       isSelectEvent: null
     }, this.props.options);
     this.plot = new Impl<XY>(data, this.parent, clone);

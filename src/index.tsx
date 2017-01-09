@@ -59,7 +59,7 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
 
   componentDidMount() {
     //create impl
-    var clone = merge({}, this.props.options);
+    const clone = merge({}, this.props.options);
     this.plot = new Impl(this.props.data, this.parent, merge(clone, {
       onSelectionChanged: this.onSelectionChanged.bind(this)
     }));
