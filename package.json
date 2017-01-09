@@ -31,7 +31,7 @@
   ],
   "scripts": {
     "compile": "tsc",
-    "lint": "tslint --project tsconfig.json --type-check -c tslint.json",
+    "lint": "tslint --project tsconfig.json -c tslint.json",
     "docs": "typedoc --options typedoc.json src",
     "prebuild": "npm run test",
     "build": "webpack -p --env prod",
