@@ -68,7 +68,7 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
   }
 
   componentDidMount() {
-    (self as any).fetch(`${this.props.serverUrl}/manhattan_meta?geqSignificance=${this.props.geqSignificance}`).then((response) => response.json())
+    (self as any).fetch(`${this.props.serverUrl}/manhattan_meta?geq_significance=${this.props.geqSignificance}`).then((response) => response.json())
       .then((metadata: any) => {
         this.chromosomes = metadata.chromosomes;
         this.xscale.domain(metadata.xlim);
@@ -137,7 +137,7 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
 
     return <svg ref={(div) => this.parent = div as SVGSVGElement} width={this.props.width} height={this.props.height}>
       <g style={{pointerEvents: 'none'}}>
-        <image x={margin.left} y={margin.top} width={image.width} height={image.height} preserveAspectRatio="none" xlinkHref={`${this.props.serverUrl}/manhattan?plain=true&geqSignificance=${this.props.geqSignificance}&width=${image.width}&height=${image.height}`} />
+        <image x={margin.left} y={margin.top} width={image.width} height={image.height} preserveAspectRatio="none" xlinkHref={`${this.props.serverUrl}/manhattan?plain=true&geq_significance=${this.props.geqSignificance}&width=${image.width}&height=${image.height}`} />
         <g className="datavisyn-manhattanplot-yaxis" transform={`translate(${margin.left},0)`} />
         <g className="datavisyn-manhattanplot-xaxis" transform={`translate(0,${image.height+margin.top})`} />
         <rect className="datavisyn-manhattanplot-significance-hidden" x={margin.left} y={margin.top + image.height} width={image.width} height="0" style={{fill: 'rgba(0,0,0,0.1)'}} />
