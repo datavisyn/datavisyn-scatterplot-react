@@ -28,6 +28,7 @@ node_modules
 
 *.map
 /src/**/*.js
+/src/**/*.jsx
 .idea
 /build/typings
 /typings
