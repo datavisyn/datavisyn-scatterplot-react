@@ -21,7 +21,8 @@ export default class LocusZoom<T> extends React.Component<ILocusZoomProps<T>,{}>
     data: React.PropTypes.array.isRequired,
     selection: React.PropTypes.any,
     options: React.PropTypes.object,
-    onSelectionChanged: React.PropTypes.func
+    onSelectionChanged: React.PropTypes.func,
+    onWindowChanged: React.PropTypes.func
   };
 
   static defaultProps = {

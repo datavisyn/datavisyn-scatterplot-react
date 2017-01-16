@@ -7,7 +7,7 @@
 
 import * as React from 'react';
 import merge from 'datavisyn-scatterplot/src/merge';
-import Impl, {IScatterplotOptions} from 'datavisyn-scatterplot/src';
+import Impl, {IScatterplotOptions, IWindow} from 'datavisyn-scatterplot/src';
 export {scale, symbol, IScatterplotOptions} from 'datavisyn-scatterplot/src';
 export {default as QQPlot, IQQPlotProps} from './qqplot';
 export {default as ManhattanPlot} from './ManhattanPlot';
@@ -22,6 +22,7 @@ export interface IScatterplotProps<T> {
   options?: IScatterplotOptions<T>;
 
   onSelectionChanged?(selection: T[]);
+  onWindowChanged?(window: IWindow);
 }
 
 function deepEqual<T>(a: T[], b: T[]) {
@@ -42,12 +43,12 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
     data: React.PropTypes.array.isRequired,
     selection: React.PropTypes.any,
     options: React.PropTypes.object,
-    onSelectionChanged: React.PropTypes.func
+    onSelectionChanged: React.PropTypes.func,
+    onWindowChanged: React.PropTypes.func
   };
 
   static defaultProps = {
-    data: [],
-    onSelectionChanged: ()=>undefined
+    data: []
   };
 
   private plot: Impl<T> = null;
@@ -60,10 +61,12 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
   componentDidMount() {
     //create impl
     const clone = merge({}, this.props.options);
-    this.plot = new Impl(this.props.data, this.parent, merge(clone, {
-      onSelectionChanged: this.onSelectionChanged.bind(this)
-    }));
+    this.plot = new Impl(this.props.data, this.parent, this.props.options);
     this.plot.selection = this.props.selection;
+    this.plot.on(Impl.EVENT_SELECTION_CHANGED, this.onSelectionChanged.bind(this));
+    if (this.props.onWindowChanged) {
+      this.plot.on(Impl.EVENT_WINDOW_CHANGED, this.props.onWindowChanged);
+    }
     this.plot.render();
   }
 
