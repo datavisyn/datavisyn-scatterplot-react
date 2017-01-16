@@ -85,7 +85,7 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
 
   render() {
     return (
-      <div ref={(div) => this.parent = div} style={{width: '500px'}}>
+      <div ref={(div) => this.parent = div}>
       </div>
     );
   }
