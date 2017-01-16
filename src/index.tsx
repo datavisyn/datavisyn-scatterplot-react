@@ -81,6 +81,7 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
 
   componentDidUpdate() {
     this.plot.selection = this.props.selection;
+    this.plot.render();
   }
 
   render() {
