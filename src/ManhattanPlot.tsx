@@ -9,6 +9,14 @@ import {select, event as d3event} from 'd3-selection';
 import {drag} from 'd3-drag';
 import {brushX, D3BrushEvent} from 'd3-brush';
 
+
+export interface IWindow {
+  fromChromosome: string;
+  fromLocation: number;
+  toChromosome: string;
+  toLocation: number;
+}
+
 export interface IManhattanPlotProps {
   serverUrl: string;
   geqSignificance?: number;
@@ -22,7 +30,7 @@ export interface IManhattanPlotProps {
   };
 
   onSignificanceChanged?(geqSignificance: number);
-  onWindowChanged?(fromChromosome: string, fromLocation: number, toChromosome: string, toLocation: number);
+  onWindowChanged?(window: IWindow);
 }
 
 interface IChromosome {
@@ -118,11 +126,11 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
         if (this.props.onWindowChanged) {
           const from = this.toRelative(Math.floor(this.xscale.invert(s[0])));
           const to = this.toRelative(Math.floor(this.xscale.invert(s[1])));
-          this.props.onWindowChanged(from.name, from.location, to.name, to.location);
+          this.props.onWindowChanged({fromChromosome: from.name, fromLocation: from.location, toChromosome: to.name, toLocation: to.location});
         }
       } else {
         if (this.props.onWindowChanged) {
-          this.props.onWindowChanged(null, null, null, null);
+          this.props.onWindowChanged(null);
         }
       }
     }).extent([[margin.left, margin.top], [this.props.width - margin.right, this.props.height - margin.bottom]]));
