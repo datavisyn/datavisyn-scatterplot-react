@@ -37,7 +37,9 @@ export default class LocusZoom<T> extends React.Component<ILocusZoomProps<T>,{}>
   render() {
     return React.createElement(Scatterplot, merge({
       options: {
-        scale: EScaleAxes.x,
+        zoom:  {
+          scale: EScaleAxes.x
+        },
         xlabel: this.props.chromosome + ' (Mb)',
         ylabel: '-log_10 p-value'
       }
