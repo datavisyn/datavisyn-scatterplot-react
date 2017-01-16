@@ -7,7 +7,8 @@
 
 import * as React from 'react';
 import merge from 'datavisyn-scatterplot/src/merge';
-import {EScaleAxes} from 'datavisyn-scatterplot/src';
+import {formatPrefix} from 'd3-format';
+import {EScaleAxes, IScatterplotOptions} from 'datavisyn-scatterplot/src';
 export {IScatterplotOptions} from 'datavisyn-scatterplot/src';
 import Scatterplot, {IScatterplotProps} from './index';
 
@@ -25,7 +26,7 @@ export default class LocusZoom<T> extends React.Component<ILocusZoomProps<T>,{}>
 
   static defaultProps = {
     data: [],
-    onSelectionChanged: ()=>undefined,
+    onSelectionChanged: () => undefined,
     chromosome: 'Chromosome'
   };
 
@@ -35,14 +36,20 @@ export default class LocusZoom<T> extends React.Component<ILocusZoomProps<T>,{}>
   }
 
   render() {
-    return React.createElement(Scatterplot, merge({
-      options: {
-        zoom:  {
-          scale: EScaleAxes.x
-        },
-        xlabel: this.props.chromosome + ' (Mb)',
-        ylabel: '-log_10 p-value'
-      }
-    },this.props));
+    const options: IScatterplotOptions<T> = {
+      margin: {
+        left: 50,
+        bottom: 30
+      },
+      format: {
+        x: formatPrefix('.2', 1e6) // SI-prefix with two significant digits, "42M"
+      },
+      zoom: {
+        scale: EScaleAxes.x
+      },
+      xlabel: this.props.chromosome,
+      ylabel: '-log10 p-value'
+    };
+    return React.createElement(Scatterplot, merge({options}, this.props));
   }
 }
