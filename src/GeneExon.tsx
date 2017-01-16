@@ -38,19 +38,12 @@ class GeneExon extends React.Component<{gene: IGene, details: boolean, scale(abs
     const start = scale(gene.abs_start);
     const end = scale(gene.abs_end);
     const length = end - start;
-    if (details) {
-      return <g transform="translate({start},0)">
-        <title>{name}</title>
-        <text textAnchor="middle" x="{start+length/2}">{name}</text>
-        <path d="M0,0L0,30 M0,15L{length},15 M{length},0L{length},30"/>
-        // TODO show all exons
-      </g>;
-    } else {
-      return <g transform="translate({start},0)">
-        <title>{name}</title>
-        <path d="M0,0L0,30 M0,15L{length},15 M{length},0L{length},30"/>
-      </g>;
-    }
+    // TODO show all exons
+    return <g transform={`translate(${start},0)`}>
+      <title>{name}</title>
+      {details && <text textAnchor="middle" x={start+length/2}>{name}</text>}
+      <path d={`M0,0l0,30 M0,15l${length},0 M${length},0l0,30`} stroke="black" strokeWidth={2}/>
+    </g>;
   }
 }
 
@@ -73,8 +66,12 @@ export default class GeneExonView extends React.Component<IGeneExonViewProps,{}>
 
   render() {
     const {genes} = this.props;
-    return <svg ref={(svg) => this.svg = svg as SVGSVGElement}>
-      {genes.map((gene) => <GeneExon gene={gene} details={false} key={gene.gene_name}scale={this.scale.bind(this)}/>)}
+    const isVisible = (gene: IGene) => {
+      const length =  this.scale(gene.abs_end) - this.scale(gene.abs_start);
+      return length >= 1;
+    };
+    return <svg ref={(svg) => this.svg = svg as SVGSVGElement} className="datavisyn-gene-exon">
+      {genes.filter(isVisible).map((gene) => <GeneExon gene={gene} details={false} key={gene.gene_name} scale={this.scale.bind(this)}/>)}
     </svg>;
   }
 }
