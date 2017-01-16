@@ -44,7 +44,7 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
   };
 
   static defaultProps = {
-    geqSignificance: 1,
+    geqSignificance: 5,
     width: 1000,
     height: 400,
     margin: {
@@ -52,7 +52,7 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
       top: 10,
       bottom: 32,
       right: 10
-    },
+    }
   };
 
   private parent: SVGSVGElement = null;
