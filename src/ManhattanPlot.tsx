@@ -34,6 +34,7 @@ export interface IManhattanPlotProps {
   onWindowChanged?(window: IWindow);
 
   snapToChromosome?: boolean;
+  detailWindow?: number[];
 }
 
 export interface IChromosome {
@@ -170,6 +171,18 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
     $parent.select('g.datavisyn-manhattanplot-brush').call(brushX().on('end', function() {
       onBrushEnd(select(this));
     }).extent([[margin.left, margin.top], [this.props.width - margin.right, this.props.height - margin.bottom]]));
+
+    if (this.props.detailWindow) {
+      const detailWindow = this.props.detailWindow;
+      const x1 = this.xscale(detailWindow[0]);
+      const x2 = this.xscale(detailWindow[1]);
+      const width = Math.max(x2-x1, 1);
+      $parent.select('rect.datavisyn-manhattanplot-detail-window')
+        .attr('x', x1)
+        .attr('y', margin.top)
+        .attr('width', width)
+        .attr('height', this.props.height - margin.bottom - margin.top);
+    }
   }
 
   render() {
@@ -187,7 +200,7 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
         <rect className="datavisyn-manhattanplot-significance-hidden" x={margin.left} y={margin.top + image.height} width={image.width} height="0" style={{fill: 'rgba(0,0,0,0.1)'}} />
       </g>
       <line x1="0" x2="100%" className="datavisyn-manhattanplot-significance" style={{stroke: 'black', strokeWidth: 3, cursor: 'ns-resize'}}/>
-
+      <rect className="datavisyn-manhattanplot-detail-window" />
       <g className="datavisyn-manhattanplot-brush" />
     </svg>;
   }
