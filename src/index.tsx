@@ -63,6 +63,7 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
     if (this.props.onWindowChanged) {
       this.plot.on(Impl.EVENT_WINDOW_CHANGED, this.props.onWindowChanged);
     }
+    this.plot.render();
   }
 
   //shouldComponentUpdate?(nextProps: IScatterplotProps<T>) {
@@ -75,6 +76,10 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
     if (this.props.onSelectionChanged) {
       this.props.onSelectionChanged(s);
     }
+  }
+
+  componentDidMount() {
+    this.build();
   }
 
   componentDidUpdate() {
