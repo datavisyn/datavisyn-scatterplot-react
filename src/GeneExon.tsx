@@ -47,21 +47,25 @@ class GeneExon extends React.Component<{gene: IGene, details: boolean, scale(abs
   }
 }
 
-export default class GeneExonView extends React.Component<IGeneExonViewProps,{}> {
+export default class GeneExonView extends React.Component<IGeneExonViewProps,{ width: number}> {
   private svg: SVGSVGElement;
   private width = 500;
 
+  constructor(props?: IGeneExonViewProps, context?: any) {
+    super(props, context);
+    this.state = {
+      width: 500
+    };
+  }
+
   componentDidMount() {
     const width = this.svg.clientWidth;
-    if (width !== this.width) {
-      this.width = width;
-      this.forceUpdate();
-    }
+    this.setState({width});
   }
 
   private scale(absLocation: number) {
     const {absLocationMin, absLocationMax} = this.props;
-    return ((absLocation - absLocationMin) / (absLocationMax - absLocationMin)) * this.width;
+    return ((absLocation - absLocationMin) / (absLocationMax - absLocationMin)) * this.state.width;
   }
 
   render() {
@@ -70,7 +74,7 @@ export default class GeneExonView extends React.Component<IGeneExonViewProps,{}>
       const length =  this.scale(gene.abs_end) - this.scale(gene.abs_start);
       return length >= 1;
     };
-    return <svg ref={(svg) => this.svg = svg as SVGSVGElement} className="datavisyn-gene-exon">
+    return <svg ref={(svg) => this.svg = svg as SVGSVGElement} className="datavisyn-gene-exon" preserveAspectRatio="xMinYMax" viewBox={`0 0 ${this.state.width} 30`}>
       {genes.filter(isVisible).map((gene) => <GeneExon gene={gene} details={false} key={gene.gene_name} scale={this.scale.bind(this)}/>)}
     </svg>;
   }
