@@ -8,7 +8,6 @@ import {axisLeft, axisBottom} from 'd3-axis';
 import {select, event as d3event} from 'd3-selection';
 import {drag} from 'd3-drag';
 import {brushX, D3BrushEvent} from 'd3-brush';
-import {isEqual} from 'lodash';
 
 
 export interface IWindow {
@@ -32,6 +31,7 @@ export interface IManhattanPlotProps {
 
   onSignificanceChanged?(geqSignificance: number);
   onWindowChanged?(window: IWindow);
+  onMetadataLoaded?(xlim: number[], ylim: number[], chromosomes: IChromosome[]);
 
   snapToChromosome?: boolean;
   detailWindow?: number[];
@@ -89,6 +89,9 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
   private fetchData() {
     (self as any).fetch(`${this.props.serverUrl}/manhattan_meta?geq_significance=${this.props.geqSignificance}`).then((response) => response.json())
       .then((metadata: any) => {
+        if (this.props.onMetadataLoaded) {
+          this.props.onMetadataLoaded(metadata.xlim, metadata.ylim, metadata.chromosomes);
+        }
         this.setState(Object.assign({geqSignificance: this.props.geqSignificance}, metadata));
       });
   }
