@@ -32,6 +32,8 @@ export interface IManhattanPlotProps {
 
   onSignificanceChanged?(geqSignificance: number);
   onWindowChanged?(window: IWindow);
+
+  snapToChromosome?: boolean;
 }
 
 export interface IChromosome {
@@ -68,7 +70,8 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
       top: 10,
       bottom: 32,
       right: 10
-    }
+    },
+    snapToChromosome: false
   };
 
   private parent: SVGSVGElement = null;
@@ -136,20 +139,36 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
       .attr('y2', sigline);
     $lineArea.attr('y', sigline).attr('height', (this.props.height-margin.bottom-sigline));
 
-    $parent.select('g.datavisyn-manhattanplot-brush').call(brushX().on('brush', () => {
-      const s : [number, number] = (d3event as D3BrushEvent<any>).selection as any;
+    const onBrushEnd = ($elem) => {
+        const event = (d3event as D3BrushEvent<any>);
+        const s : [number, number] = event.selection as any;
+        if (!event.sourceEvent) {
+          return; // Only transition after input.
+        }
 
-      if (s) {
-        if (this.props.onWindowChanged) {
-          const from = this.toRelative(Math.floor(this.xscale.invert(s[0])));
-          const to = this.toRelative(Math.floor(this.xscale.invert(s[1])));
-          this.props.onWindowChanged({fromChromosome: from.name, fromLocation: from.location, toChromosome: to.name, toLocation: to.location});
+        if (s) {
+          if (this.props.snapToChromosome) {
+            const absloc = Math.floor(this.xscale.invert(s[0]));
+            const c = this.state.chromosomes.find((d) => d.start <= absloc && d.end >= absloc);
+
+            $elem.transition().call(event.target.move, [c.start, c.end].map(this.xscale));
+            if (this.props.onWindowChanged) {
+              this.props.onWindowChanged({fromChromosome: c.name, fromLocation: c.start - c.shift, toChromosome: c.name, toLocation: c.end - c.shift});
+            }
+          } else if (this.props.onWindowChanged) {
+            const from = this.toRelative(Math.floor(this.xscale.invert(s[0])));
+            const to = this.toRelative(Math.ceil(this.xscale.invert(s[1])));
+            this.props.onWindowChanged({fromChromosome: from.name, fromLocation: from.location, toChromosome: to.name, toLocation: to.location});
+          }
+        } else {
+          if (this.props.onWindowChanged) {
+            this.props.onWindowChanged(null);
+          }
         }
-      } else {
-        if (this.props.onWindowChanged) {
-          this.props.onWindowChanged(null);
-        }
-      }
+      };
+
+    $parent.select('g.datavisyn-manhattanplot-brush').call(brushX().on('end', function() {
+      onBrushEnd(select(this));
     }).extent([[margin.left, margin.top], [this.props.width - margin.right, this.props.height - margin.bottom]]));
   }
 
