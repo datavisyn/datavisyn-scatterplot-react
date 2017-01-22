@@ -11,6 +11,7 @@ import Impl, {IScatterplotOptions, IWindow} from 'datavisyn-scatterplot/src';
 export {scale, symbol, IScatterplotOptions} from 'datavisyn-scatterplot/src';
 export {default as QQPlot, IQQPlotProps} from './qqplot';
 export {default as ManhattanPlot} from './ManhattanPlot';
+import {isEqual} from 'lodash';
 
 /**
  * all scatterplot options and the data
@@ -23,16 +24,6 @@ export interface IScatterplotProps<T> {
 
   onSelectionChanged?(selection: T[]);
   onWindowChanged?(window: IWindow);
-}
-
-function deepEqual<T>(a: T[], b: T[]) {
-  if (a === b) {
-    return true;
-  }
-  if (a.length !== b.length) {
-    return false;
-  }
-  return a.every((ai, i) => ai === b[i]);
 }
 
 /**
@@ -52,22 +43,26 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
   };
 
   private plot: Impl<T> = null;
+  private renderedProps: IScatterplotProps<T> = null;
   private parent: HTMLDivElement = null;
 
   constructor(props: IScatterplotProps<T>, context?: any) {
     super(props, context);
   }
 
-  componentDidMount() {
-    //create impl
-    const clone = merge({}, this.props.options);
-    this.plot = new Impl(this.props.data, this.parent, this.props.options);
-    this.plot.selection = this.props.selection;
+  private build() {
+    this.renderedProps = {
+      options: merge({}, this.props.options),
+      data: this.props.data
+    };
+    if (this.plot) {
+      this.parent.innerHTML = ''; //clear
+    }
+    this.plot = new Impl(this.renderedProps.data, this.parent, this.renderedProps.options);
     this.plot.on(Impl.EVENT_SELECTION_CHANGED, this.onSelectionChanged.bind(this));
     if (this.props.onWindowChanged) {
       this.plot.on(Impl.EVENT_WINDOW_CHANGED, this.props.onWindowChanged);
     }
-    this.plot.render();
   }
 
   //shouldComponentUpdate?(nextProps: IScatterplotProps<T>) {
@@ -83,8 +78,16 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
   }
 
   componentDidUpdate() {
-    this.plot.selection = this.props.selection;
-    this.plot.render();
+    if (!this.renderedProps || !isEqual(this.props.options, this.renderedProps.options)) {
+      this.build();
+    } else if (!isEqual(this.props.data, this.renderedProps.data)) {
+      this.plot.data = this.props.data;
+      this.renderedProps.data = this.props.data;
+      this.plot.render();
+    } else {
+      this.plot.selection = this.props.selection;
+      this.plot.render();
+    }
   }
 
   render() {

@@ -8,6 +8,7 @@ import {axisLeft, axisBottom} from 'd3-axis';
 import {select, event as d3event} from 'd3-selection';
 import {drag} from 'd3-drag';
 import {brushX, D3BrushEvent} from 'd3-brush';
+import {isEqual} from 'lodash';
 
 
 export interface IWindow {
@@ -33,14 +34,21 @@ export interface IManhattanPlotProps {
   onWindowChanged?(window: IWindow);
 }
 
-interface IChromosome {
+export interface IChromosome {
   name: string;
   start: number;
   end: number;
   shift: number;
 }
 
-export default class ManhattanPlotReact extends React.Component<IManhattanPlotProps,{}> {
+export interface IManhattanPlotState {
+  chromosomes: IChromosome[];
+  xlim: [number, number];
+  ylim: [number, number];
+  geqSignificance: number;
+}
+
+export default class ManhattanPlotReact extends React.Component<IManhattanPlotProps,IManhattanPlotState> {
   static propTypes = {
     serverUrl: React.PropTypes.string.isRequired,
     geqSignificance: React.PropTypes.number,
@@ -69,28 +77,24 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
   private yscale = scaleLinear().range([this.props.height - this.props.margin.bottom, this.props.margin.top]);
   private xaxis = axisBottom(this.xscale);
   private yaxis = axisLeft(this.yscale);
-  private chromosomes: IChromosome[];
 
   constructor(props: IManhattanPlotProps, context?: any) {
     super(props, context);
   }
 
-  componentDidMount() {
+  private fetchData() {
     (self as any).fetch(`${this.props.serverUrl}/manhattan_meta?geq_significance=${this.props.geqSignificance}`).then((response) => response.json())
       .then((metadata: any) => {
-        this.chromosomes = metadata.chromosomes;
-        this.xscale.domain(metadata.xlim);
-        this.yscale.domain(metadata.ylim);
-        this.xaxis.tickValues(this.chromosomes.map((d) => Math.floor((d.start+d.end)/2)));
-        this.xaxis.tickFormat((center: number) => {
-          return this.chromosomes.find((d) => center >= d.start && center <= d.end).name;
-        });
-        this.forceUpdate();
+        this.setState(Object.assign({geqSignificance: this.props.geqSignificance}, metadata));
       });
   }
 
+  componentDidMount() {
+    this.fetchData();
+  }
+
   private toRelative(absloc: number) {
-    const c = this.chromosomes.find((d) => d.start <= absloc && d.end >= absloc);
+    const c = this.state.chromosomes.find((d) => d.start <= absloc && d.end >= absloc);
     return {
       name: c.name,
       location: absloc - c.shift
@@ -98,6 +102,19 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
   }
 
   componentDidUpdate() {
+    if (!this.state.chromosomes) {
+      return;
+    }
+    if (this.state.geqSignificance !== this.props.geqSignificance) {
+      this.fetchData();
+    }
+    this.xscale.domain(this.state.xlim);
+    this.yscale.domain(this.state.ylim);
+    this.xaxis.tickValues(this.state.chromosomes.map((d) => Math.floor((d.start+d.end)/2)));
+    this.xaxis.tickFormat((center: number) => {
+      return this.state.chromosomes.find((d) => center >= d.start && center <= d.end).name;
+    });
+
     const $parent = select(this.parent);
     $parent.select('g.datavisyn-manhattanplot-xaxis').call(this.xaxis);
     $parent.select('g.datavisyn-manhattanplot-yaxis').call(this.yaxis);
