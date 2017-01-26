@@ -24,11 +24,24 @@ export interface IGene {
   exons?: IExon[];
 }
 
-export interface IMappedGene {
-  data: IGene;
-  start: number;
-  end: number;
+const AVERAGE_TEXT_LENGTH = 70;
+
+class MappedGene {
   y: number;
+  freeSpaceBefore: number;
+  freeSpaceAfter: number;
+
+  constructor(public readonly data: IGene, public readonly start: number, public readonly end: number) {
+
+  }
+
+  get length() {
+    return this.end - this.start;
+  }
+
+  get enoughSpaceForLabel() {
+    return (this.length + this.freeSpaceBefore + this.freeSpaceAfter) > AVERAGE_TEXT_LENGTH;
+  }
 }
 
 export interface IGeneExonViewProps {
@@ -36,34 +49,67 @@ export interface IGeneExonViewProps {
   absLocationMin: number;
   absLocationMax: number;
   genes: IGene[];
-  margin?: { left: number; right: number};
+  margin?: {left: number; right: number};
+  minLength?: number;
 }
 
-class GeneExon extends React.Component<{gene: IGene, start: number, end: number, y: number},{}> {
+enum EDetailLevel {
+  low, medium, high
+}
+
+
+class GeneExon extends React.Component<{gene: MappedGene, detailLevel: EDetailLevel},{}> {
   render() {
-    const {gene, start, end, y} = this.props;
-    const name = (gene.strand === '+') ? gene.gene_name + '→' : '←' + gene.gene_name;
+    const {data, start, end, enoughSpaceForLabel} = this.props.gene;
+    const name = (data.strand === '+') ? data.gene_name + '→' : '←' + data.gene_name;
     const length = end - start;
-    return <line x1={start} y1={y} x2={end} y2={y}>
-      <title>{name}</title>
-    </line>;
+
+    let detailLevel = this.props.detailLevel;
+    let y = this.props.gene.y;
+
+    if (detailLevel !== EDetailLevel.low && !enoughSpaceForLabel) {
+      detailLevel = EDetailLevel.low;
+      y += 11;
+    }
+
+    switch (detailLevel) {
+      case EDetailLevel.high:
+        return <g transform={`translate(${start},0)`} className="gene">
+          <title>{name}</title>
+          <text textAnchor="middle" x={length/2}>{name}</text>
+          <path d={`M0,0l0,30 M0,15l${length},0 M${length},0l0,30`}/>
+        </g>;
+      case EDetailLevel.medium:
+        y += 11;
+        return <g transform={`translate(${start},${y})`} className="gene">
+          <title>{name}</title>
+          <text textAnchor="middle" x={length/2} y="-3">{name}</text>
+          <line x2={length}/>
+        </g>;
+      case EDetailLevel.low:
+        return <line x1={start} y1={y} x2={end} y2={y}>
+          <title>{name}</title>
+        </line>;
+    }
   }
 }
 
-class DetailedGeneExon extends React.Component<{gene: IGene, scale(absPos: number): number, y: number},{}> {
-  render() {
-    const {gene, scale} = this.props;
-    const name = (gene.strand === '+') ? gene.gene_name + '→' : '←' + gene.gene_name;
-    const start = scale(gene.abs_start);
-    const end = scale(gene.abs_end);
-    const length = end - start;
-    // TODO show all exons
-    return <g transform={`translate(${start},0)`}>
-      <title>{name}</title>
-       <text textAnchor="middle" x={start+length/2}>{name}</text>
-      <path d={`M0,0l0,30 M0,15l${length},0 M${length},0l0,30`} stroke="black" strokeWidth={2}/>
-    </g>;
+
+function decideDetailLevel(genes: MappedGene[]) {
+  //ignoring really really small ones
+  const {sum, count} = genes.reduce((({sum, count}, gene) => {
+    const l = gene.end - gene.start;
+    if (l > 5) {
+      sum += l;
+      count += 1;
+    }
+    return {sum, count};
+  }), {sum: 0, count: 0});
+  if (count === 0) {
+    return EDetailLevel.low;
   }
+  const avg = sum / count;
+  return avg > 10 ? EDetailLevel.medium: EDetailLevel.low;
 }
 
 /**
@@ -72,23 +118,27 @@ class DetailedGeneExon extends React.Component<{gene: IGene, scale(absPos: numbe
  * @param height height per gene
  * @returns the total height needed
  */
-function computeYValues(genes: IMappedGene[], height: number) {
+function computeYValues(genes: MappedGene[], height: number) {
   //assume they are sorted
-  const levels = [-Infinity];
+  const levels: MappedGene[] = [];
   outer: for (const gene of genes) {
     for (let i = 0; i < levels.length; ++i) {
-      const occuppiedTill = levels[i];
+      const occuppiedBy = levels[i];
+      const occuppiedTill = Math.ceil(occuppiedBy.end + 1);
       if (occuppiedTill < gene.start) {
         //can put it here
         gene.y = i * height;
-        levels[i] = gene.end;
+        occuppiedBy.freeSpaceAfter = gene.freeSpaceBefore = (gene.start - occuppiedTill) / 2;
+        levels[i] = gene;
         continue outer;
       }
     }
     //doesn't fit to any level so far, create a new one
-    levels.push(gene.end);
-    gene.y = (levels.length-1) * height;
+    gene.freeSpaceBefore = +Infinity;
+    levels.push(gene);
+    gene.y = (levels.length - 1) * height;
   }
+  levels.forEach((gene) => gene.freeSpaceAfter = +Infinity);
   return levels.length * height;
 }
 
@@ -97,7 +147,8 @@ export default class GeneExonView extends React.Component<IGeneExonViewProps,{}>
     margin: {
       left: 50,
       right: 10
-    }
+    },
+    minLength: 1
   };
 
   private svg: SVGSVGElement;
@@ -111,27 +162,30 @@ export default class GeneExonView extends React.Component<IGeneExonViewProps,{}>
   }
 
   render() {
-    const {genes, absLocationMin, absLocationMax} = this.props;
+    const {genes, absLocationMin, absLocationMax, minLength} = this.props;
     const width = (this.svg ? this.svg.clientWidth : 500) - this.props.margin.left - this.props.margin.right;
     const isInView = (start: number, end: number) => {
       return !(start >= width || end < 0);
     };
     const scale = (absLocation: number) => ((absLocation - absLocationMin) / (absLocationMax - absLocationMin)) * width;
-    const isVisible = (gene: IMappedGene) => {
-      const length =  gene.end - gene.start;
-      return length >= 1 && isInView(gene.start, gene.end);
+    const isVisible = (gene: MappedGene) => {
+      const length = gene.end - gene.start;
+      return length >= minLength && isInView(gene.start, gene.end);
     };
-    const visible = genes.map((g) => ({data: g, start: scale(g.abs_start), end: scale(g.abs_end), y: 0})).filter(isVisible).sort((a,b) => a.start - b.start);
-    const height = computeYValues(visible, 4);
+    const visible = genes.map((g) => new MappedGene(g, scale(g.abs_start), scale(g.abs_end))).filter(isVisible).sort((a, b) => a.start - b.start);
 
-    return <svg ref={(svg) => this.svg = svg as SVGSVGElement} className="datavisyn-gene-exon" width="100%" height={height}>
+    const detailLevel = decideDetailLevel(visible);
+    const height = computeYValues(visible, detailLevel === EDetailLevel.low ? 4 : (detailLevel === EDetailLevel.medium ? 20 : 30));
+
+    return <svg ref={(svg) => this.svg = svg as SVGSVGElement} className="datavisyn-gene-exon" width="100%"
+                height={height}>
       <defs>
         <clipPath id="datavisyn-gene-exon-clip">
-          <rect width={width} height="100%" />
+          <rect width={width} height="100%"/>
         </clipPath>
       </defs>
-      <g transform={`translate(${this.props.margin.left},0)`} clipPath="url(#datavisyn-gene-exon-clip)" stroke="black">
-      {visible.map((gene) => <GeneExon gene={gene.data} key={gene.data.gene_name} start={gene.start} end={gene.end} y={gene.y}/>)}
+      <g transform={`translate(${this.props.margin.left},0)`} clipPath="url(#datavisyn-gene-exon-clip)">
+        {visible.map((gene) => <GeneExon gene={gene} key={gene.data.gene_name} detailLevel={detailLevel}/>)}
       </g>
     </svg>;
   }
