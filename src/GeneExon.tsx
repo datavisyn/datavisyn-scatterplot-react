@@ -40,7 +40,7 @@ class MappedGene {
   }
 
   get enoughSpaceForLabel() {
-    return (this.length + 2*Math.min(this.freeSpaceBefore + this.freeSpaceAfter)) > AVERAGE_TEXT_LENGTH;
+    return (this.length + 2 * Math.min(this.freeSpaceBefore + this.freeSpaceAfter)) > AVERAGE_TEXT_LENGTH;
   }
 }
 
@@ -58,7 +58,7 @@ enum EDetailLevel {
 }
 
 
-class GeneExon extends React.Component<{gene: MappedGene, detailLevel: EDetailLevel, scale: (absLocation: number)=>number},{}> {
+class GeneExon extends React.Component<{gene: MappedGene, detailLevel: EDetailLevel, scale: (absLocation: number) => number},{}> {
   render() {
     const scale = this.props.scale;
     const {data, start, end, enoughSpaceForLabel} = this.props.gene;
@@ -97,7 +97,7 @@ class GeneExon extends React.Component<{gene: MappedGene, detailLevel: EDetailLe
             const estart = scale(exon.abs_start);
             const elength = scale(exon.abs_end) - estart;
             return `M${estart-start},0l0,5l${elength},0l0,-5l${-elength},0`;
-          }).join(' ')} />
+          }).join(' ')}/>
         </g>;
       case EDetailLevel.medium:
         return <g transform={`translate(${start},${y})`} className="gene">
@@ -217,12 +217,12 @@ export default class GeneExonView extends React.Component<IGeneExonViewProps,{}>
     const height = computeYValues(visible, detailLevel === EDetailLevel.low ? 4 : (detailLevel === EDetailLevel.medium ? 20 : 25));
 
     if (detailLevel === EDetailLevel.high) {
-      const toFetch : MappedGene[] = [];
-      visible.forEach((gene) =>  {
+      const toFetch: MappedGene[] = [];
+      visible.forEach((gene) => {
         const exons = gene.data.exons || this.exons.get(gene.data.gene_name);
         if (exons) {
           gene.data.exons = exons;
-        } else if (!this.loading.has(gene.data.gene_name)){
+        } else if (!this.loading.has(gene.data.gene_name)) {
           toFetch.push(gene);
           this.loading.add(gene.data.gene_name);
         }
@@ -241,7 +241,8 @@ export default class GeneExonView extends React.Component<IGeneExonViewProps,{}>
         </clipPath>
       </defs>
       <g transform={`translate(${this.props.margin.left},0)`} clipPath="url(#datavisyn-gene-exon-clip)">
-        {visible.map((gene) => <GeneExon gene={gene} key={gene.data.gene_name} detailLevel={detailLevel} scale={scale}/>)}
+        {visible.map((gene) => <GeneExon gene={gene} key={gene.data.gene_name} detailLevel={detailLevel}
+                                         scale={scale}/>)}
       </g>
     </svg>;
   }
