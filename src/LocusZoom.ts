@@ -49,7 +49,8 @@ export default class LocusZoom<T> extends React.Component<ILocusZoomProps<T>,{}>
         scale: EScaleAxes.x
       },
       xlabel: this.props.chromosome,
-      ylabel: '-log10 p-value'
+      ylabel: '-log10 p-value',
+      aspectRatio: 4 // a wild guess that x is 4 times as width as height
     };
     return React.createElement(Scatterplot, merge({options}, this.props));
   }
