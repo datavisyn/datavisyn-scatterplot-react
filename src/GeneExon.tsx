@@ -26,7 +26,7 @@ export interface IGene {
 
 const AVERAGE_TEXT_LENGTH = 70;
 
-class MappedGene {
+export class MappedGene {
   y: number;
   freeSpaceBefore: number;
   freeSpaceAfter: number;
