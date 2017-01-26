@@ -40,7 +40,7 @@ class MappedGene {
   }
 
   get enoughSpaceForLabel() {
-    return (this.length + this.freeSpaceBefore + this.freeSpaceAfter) > AVERAGE_TEXT_LENGTH;
+    return (this.length + 2*Math.min(this.freeSpaceBefore + this.freeSpaceAfter)) > AVERAGE_TEXT_LENGTH;
   }
 }
 
@@ -58,8 +58,9 @@ enum EDetailLevel {
 }
 
 
-class GeneExon extends React.Component<{gene: MappedGene, detailLevel: EDetailLevel},{}> {
+class GeneExon extends React.Component<{gene: MappedGene, detailLevel: EDetailLevel, scale: (absLocation: number)=>number},{}> {
   render() {
+    const scale = this.props.scale;
     const {data, start, end, enoughSpaceForLabel} = this.props.gene;
     const name = (data.strand === '+') ? data.gene_name + '→' : '←' + data.gene_name;
     const length = end - start;
@@ -67,20 +68,38 @@ class GeneExon extends React.Component<{gene: MappedGene, detailLevel: EDetailLe
     let detailLevel = this.props.detailLevel;
     let y = this.props.gene.y;
 
-    if (detailLevel !== EDetailLevel.low && !enoughSpaceForLabel) {
-      detailLevel = EDetailLevel.low;
-      y += 11;
+    switch (detailLevel) {
+      case EDetailLevel.high:
+        y += 16;
+        if (!enoughSpaceForLabel) {
+          detailLevel = EDetailLevel.low;
+        } else if (!data.exons) {
+          detailLevel = EDetailLevel.medium;
+        }
+        break;
+      case EDetailLevel.medium:
+        y += 11;
+        if (!enoughSpaceForLabel) {
+          detailLevel = EDetailLevel.low;
+        }
+        break;
+      case EDetailLevel.low:
+        break;
     }
 
     switch (detailLevel) {
       case EDetailLevel.high:
-        return <g transform={`translate(${start},0)`} className="gene">
+        return <g transform={`translate(${start},${y})`} className="gene">
           <title>{name}</title>
-          <text textAnchor="middle" x={length/2}>{name}</text>
-          <path d={`M0,0l0,30 M0,15l${length},0 M${length},0l0,30`}/>
+          <text textAnchor="middle" x={length/2} y="-3">{name}</text>
+          <line x2={length}/>
+          <path d={data.exons.map((exon) => {
+            const estart = scale(exon.abs_start);
+            const elength = scale(exon.abs_end) - estart;
+            return `M${estart-start},0l0,5l${elength},0l0,-5l${-elength},0`;
+          }).join(' ')} />
         </g>;
       case EDetailLevel.medium:
-        y += 11;
         return <g transform={`translate(${start},${y})`} className="gene">
           <title>{name}</title>
           <text textAnchor="middle" x={length/2} y="-3">{name}</text>
@@ -109,7 +128,12 @@ function decideDetailLevel(genes: MappedGene[]) {
     return EDetailLevel.low;
   }
   const avg = sum / count;
-  return avg > 10 ? EDetailLevel.medium: EDetailLevel.low;
+  if (avg > 50) {
+    return EDetailLevel.high;
+  } else if (avg > 10) {
+    return EDetailLevel.medium;
+  }
+  return EDetailLevel.low;
 }
 
 /**
@@ -153,12 +177,27 @@ export default class GeneExonView extends React.Component<IGeneExonViewProps,{}>
 
   private svg: SVGSVGElement;
 
+  private readonly exons = new Map<string, IExon[]>();
+  private readonly loading = new Set<string>();
+
   constructor(props?: IGeneExonViewProps, context?: any) {
     super(props, context);
   }
 
   componentDidMount() {
     this.forceUpdate(); // since now styled
+  }
+
+  fetchGenes(genes: MappedGene[]) {
+    (self as any).fetch(`${this.props.serverUrl}/gene/exon?gene_name=${genes.map((g) => g.data.gene_name).join(',')}`)
+      .then((r) => r.json())
+      .then((data: IGene[]) => {
+        data.forEach((gene) => {
+          this.exons.set(gene.gene_name, gene.exons);
+          this.loading.delete(gene.gene_name);
+        });
+        this.forceUpdate();
+      });
   }
 
   render() {
@@ -175,7 +214,24 @@ export default class GeneExonView extends React.Component<IGeneExonViewProps,{}>
     const visible = genes.map((g) => new MappedGene(g, scale(g.abs_start), scale(g.abs_end))).filter(isVisible).sort((a, b) => a.start - b.start);
 
     const detailLevel = decideDetailLevel(visible);
-    const height = computeYValues(visible, detailLevel === EDetailLevel.low ? 4 : (detailLevel === EDetailLevel.medium ? 20 : 30));
+    const height = computeYValues(visible, detailLevel === EDetailLevel.low ? 4 : (detailLevel === EDetailLevel.medium ? 20 : 25));
+
+    if (detailLevel === EDetailLevel.high) {
+      const toFetch : MappedGene[] = [];
+      visible.forEach((gene) =>  {
+        const exons = gene.data.exons || this.exons.get(gene.data.gene_name);
+        if (exons) {
+          gene.data.exons = exons;
+        } else if (!this.loading.has(gene.data.gene_name)){
+          toFetch.push(gene);
+          this.loading.add(gene.data.gene_name);
+        }
+      });
+      if (toFetch.length > 0) {
+        this.fetchGenes(toFetch);
+      }
+    }
+
 
     return <svg ref={(svg) => this.svg = svg as SVGSVGElement} className="datavisyn-gene-exon" width="100%"
                 height={height}>
@@ -185,7 +241,7 @@ export default class GeneExonView extends React.Component<IGeneExonViewProps,{}>
         </clipPath>
       </defs>
       <g transform={`translate(${this.props.margin.left},0)`} clipPath="url(#datavisyn-gene-exon-clip)">
-        {visible.map((gene) => <GeneExon gene={gene} key={gene.data.gene_name} detailLevel={detailLevel}/>)}
+        {visible.map((gene) => <GeneExon gene={gene} key={gene.data.gene_name} detailLevel={detailLevel} scale={scale}/>)}
       </g>
     </svg>;
   }
