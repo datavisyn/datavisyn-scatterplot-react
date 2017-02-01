@@ -22,6 +22,8 @@ export interface IManhattanPlotProps {
   geqSignificance?: number;
   width?: number;
   height?: number;
+  yAxisLabel?: string;
+  xAxisLabel?: string;
   margin?: {
     left: number;
     top: number;
@@ -66,10 +68,12 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
     geqSignificance: 5,
     width: 1000,
     height: 400,
+    yAxisLabel: 'y axis',
+    xAxisLabel: 'x axis',
     margin: {
-      left: 32,
+      left: 50,
       top: 10,
-      bottom: 32,
+      bottom: 42,
       right: 10
     },
     snapToChromosome: false
@@ -199,6 +203,8 @@ export default class ManhattanPlotReact extends React.Component<IManhattanPlotPr
       <g style={{pointerEvents: 'none'}}>
         <image x={margin.left} y={margin.top} width={image.width} height={image.height} preserveAspectRatio="none" xlinkHref={`${this.props.serverUrl}/manhattan?plain=true&geq_significance=${this.props.geqSignificance}&width=${image.width}&height=${image.height}`} />
         <g className="datavisyn-manhattanplot-yaxis" transform={`translate(${margin.left},0)`} />
+        <text transform={`translate(${margin.left/4}, ${image.height/2}) rotate(270)`}>{this.props.yAxisLabel}</text>
+        <text transform={`translate(${image.width/2}, ${image.height + margin.top + margin.bottom * 0.75})`}>{this.props.xAxisLabel}</text>
         <g className="datavisyn-manhattanplot-xaxis" transform={`translate(0,${image.height+margin.top})`} />
         <rect className="datavisyn-manhattanplot-significance-hidden" x={margin.left} y={margin.top + image.height} width={image.width} height="0" style={{fill: 'rgba(0,0,0,0.1)'}} />
       </g>
