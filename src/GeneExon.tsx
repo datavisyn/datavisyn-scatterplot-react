@@ -202,7 +202,8 @@ export default class GeneExonView extends React.Component<IGeneExonViewProps,{}>
 
   render() {
     const {genes, absLocationMin, absLocationMax, minLength} = this.props;
-    const width = (this.svg ? this.svg.clientWidth : 500) - this.props.margin.left - this.props.margin.right;
+
+    const width = (this.svg ? this.svg.getBoundingClientRect().width : 500) - this.props.margin.left - this.props.margin.right;
     const isInView = (start: number, end: number) => {
       return !(start >= width || end < 0);
     };
