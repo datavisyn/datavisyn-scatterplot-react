@@ -7,8 +7,8 @@
 
 import * as React from 'react';
 import merge from 'datavisyn-scatterplot/src/merge';
-import Impl, {IScatterplotOptions, IWindow} from 'datavisyn-scatterplot/src';
-export {scale, symbol, IScatterplotOptions} from 'datavisyn-scatterplot/src';
+import Impl, {IScatterplotOptions, IScatterplotBaseOptions, IWindow} from 'datavisyn-scatterplot/src';
+export {scale, symbol, IScatterplotOptions, IScatterplotBaseOptions} from 'datavisyn-scatterplot/src';
 export {default as QQPlot, IQQPlotProps} from './qqplot';
 export {default as ManhattanPlot} from './ManhattanPlot';
 import {isEqual} from 'lodash';
@@ -21,6 +21,7 @@ export interface IScatterplotProps<T> {
   selection?: T[];
 
   options?: IScatterplotOptions<T>;
+  baseOptions?: IScatterplotBaseOptions<T>;
 
   onSelectionChanged?(selection: T[]);
   onWindowChanged?(window: IWindow);
@@ -53,12 +54,13 @@ export default class Scatterplot<T> extends React.Component<IScatterplotProps<T>
   private build() {
     this.renderedProps = {
       options: merge({}, this.props.options),
+      baseOptions: merge({}, this.props.baseOptions),
       data: this.props.data
     };
     if (this.plot) {
       this.parent.innerHTML = ''; //clear
     }
-    this.plot = new Impl(this.renderedProps.data, this.parent, this.renderedProps.options);
+    this.plot = new Impl(this.renderedProps.data, this.parent, this.renderedProps.options, this.renderedProps.baseOptions);
     this.plot.on(Impl.EVENT_SELECTION_CHANGED, this.onSelectionChanged.bind(this));
     if (this.props.onWindowChanged) {
       this.plot.on(Impl.EVENT_WINDOW_CHANGED, this.props.onWindowChanged);
