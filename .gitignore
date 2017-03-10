@@ -30,5 +30,7 @@ node_modules
 /src/**/*.js
 /src/**/*.jsx
 .idea
+/build/*.js
+/dist/
 /build/typings
 /typings

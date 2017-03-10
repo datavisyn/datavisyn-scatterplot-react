@@ -1,6 +1,6 @@
 {
   "name": "datavisyn-scatterplot-react",
-  "version": "0.0.1",
+  "version": "0.0.2-SNAPSHOT",
   "description": "a canvas based scatterplot implementation",
   "homepage": "https://phovea.caleydo.org",
   "author": {
@@ -54,7 +54,7 @@
     "@types/react-dom": "^0.14.20",
     "@types/lodash": "^4.14.50",
     "d3-brush": "^1.0.3",
-    "datavisyn-scatterplot": "0.0.1",
+    "datavisyn-scatterplot": "github:datavisyn/datavisyn-scatterplot",
     "lodash": "^4.17.4",
     "react": "^15.4.1",
     "react-dom": "^15.4.1"
