@@ -11,6 +11,7 @@ import Impl, {IScatterplotOptions, IWindow} from 'datavisyn-scatterplot/src';
 export {scale, symbol, IScatterplotOptions} from 'datavisyn-scatterplot/src';
 export {default as QQPlot, IQQPlotProps} from './qqplot';
 export {default as ManhattanPlot} from './ManhattanPlot';
+export {default as LocusZoom, ILocusZoomProps} from './LocusZoom';
 import {isEqual} from 'lodash';
 
 /**
