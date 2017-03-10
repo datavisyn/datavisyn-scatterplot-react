@@ -12,6 +12,7 @@ export {scale, symbol, IScatterplotOptions} from 'datavisyn-scatterplot/src';
 export {default as QQPlot, IQQPlotProps} from './qqplot';
 export {default as ManhattanPlot} from './ManhattanPlot';
 export {default as LocusZoom, ILocusZoomProps} from './LocusZoom';
+export {default as GeneExon, IGeneExonViewProps as IGeneExonProps} from './GeneExon';
 import {isEqual} from 'lodash';
 
 /**
