@@ -8,8 +8,8 @@
 import * as React from 'react';
 import merge from 'datavisyn-scatterplot/src/merge';
 import {formatPrefix} from 'd3-format';
-import {EScaleAxes, IScatterplotOptions} from 'datavisyn-scatterplot/src';
-export {IScatterplotOptions} from 'datavisyn-scatterplot/src';
+import {EScaleAxes, IScatterplotOptions, IScatterplotBaseOptions} from 'datavisyn-scatterplot/src';
+export {IScatterplotOptions, IScatterplotBaseOptions} from 'datavisyn-scatterplot/src';
 import Scatterplot, {IScatterplotProps} from './index';
 
 export interface ILocusZoomProps<T> extends IScatterplotProps<T> {
@@ -37,21 +37,24 @@ export default class LocusZoom<T> extends React.Component<ILocusZoomProps<T>,{}>
   }
 
   render() {
+    const baseOptions: IScatterplotBaseOptions<T> = {
+        margin: {
+          left: 50,
+          bottom: 30
+        },
+        format: {
+          x: formatPrefix('.2', 1e6) // SI-prefix with two significant digits, "42M"
+        },
+        zoom: {
+          scale: EScaleAxes.x
+        },
+        aspectRatio: 5 // a wild guess that x is 5 times as width as height
+    };
+
     const options: IScatterplotOptions<T> = {
-      margin: {
-        left: 50,
-        bottom: 30
-      },
-      format: {
-        x: formatPrefix('.2', 1e6) // SI-prefix with two significant digits, "42M"
-      },
-      zoom: {
-        scale: EScaleAxes.x
-      },
       xlabel: this.props.chromosome,
       ylabel: '-log10 p-value',
-      aspectRatio: 5 // a wild guess that x is 5 times as width as height
     };
-    return React.createElement(Scatterplot, merge({options}, this.props));
+    return React.createElement(Scatterplot, merge({options}, {baseOptions}, this.props.baseOptions, this.props.options, this.props));
   }
 }
